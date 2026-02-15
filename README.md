@@ -11,6 +11,7 @@ Serwis FastAPI do porownywania dwoch obrazow przy uzyciu metryk percepcyjnych (L
 - Compares two images available on the server filesystem
 - Returns LPIPS + DISTS scores and LPIPS heatmap in one response (`/compare`)
 - Supports dedicated endpoints for LPIPS (`/compare/lpips`) and DISTS (`/compare/dists`)
+- Accepts image input in 3 integration modes: paths, mixed (ref path + uploaded test), full API upload
 
 ### Requirements
 
@@ -66,6 +67,35 @@ curl -sS -X POST "http://127.0.0.1:8080/compare" \
   }'
 ```
 
+Compare LPIPS in mixed mode (ref path + test image base64):
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8080/compare/lpips" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ref_path": "tests/assets/ref_1.png",
+    "test_image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR42mP4DwABAQEAG7buVgAAAABJRU5ErkJggg==",
+    "config": {
+      "net": "vgg",
+      "force_device": "cpu"
+    }
+  }'
+```
+
+Compare DISTS in API upload mode (both images as base64):
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8080/compare/dists" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ref_image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR42mP4DwABAQEAG7buVgAAAABJRU5ErkJggg==",
+    "test_image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR42mP4DwABAQEAG7buVgAAAABJRU5ErkJggg==",
+    "config": {
+      "force_device": "cpu"
+    }
+  }'
+```
+
 
 LPIPS only (JSON -> JSON):
 
@@ -101,7 +131,15 @@ curl -sS -X POST "http://127.0.0.1:8080/compare/dists" \
 
 ### Notes
 
-- `ref_path`/`test_path` are paths on the server running the API (this service does not upload files).
+- You can send image sources in one of 3 modes:
+  - `paths`: `ref_path` + `test_path`
+  - `mixed`: `ref_path` + `test_image_base64`
+  - `api_upload`: `ref_image_base64` + `test_image_base64`
+- `ref_image_base64` and `test_image_base64` must be valid image bytes encoded as base64.
+- Responses include:
+  - `integration_mode` (`paths`, `mixed`, `api_upload`)
+  - `analyzed_models` (metric + model used)
+- `lpips_heatmap_png_base64` is returned as base64 PNG.
 - `ref_path`/`test_path` must resolve inside `IMAGE_BASE_DIR` (default: current working directory).
 - GPU: you need a CUDA-enabled PyTorch build; then set `config.force_device` to `"cuda"`.
 - `API_DEBUG=1` (default) returns a detailed JSON 500 response; set `API_DEBUG=0` to disable it.
@@ -110,3 +148,42 @@ curl -sS -X POST "http://127.0.0.1:8080/compare/dists" \
 
 - `lpips`: implemented (scalar + heatmap). Nets: `vgg`, `alex`, `squeeze`.
 - `dists`: implemented for scalar scoring.
+
+### Contract for client developers
+
+- OpenAPI JSON contract: `http://127.0.0.1:8080/openapi.json`
+- Swagger UI: `http://127.0.0.1:8080/docs`
+- ReDoc: `http://127.0.0.1:8080/redoc`
+- Repository snapshot of contract: `docs/openapi.json`
+- Client-facing change notes: `docs/CLIENT_CONTRACT_CHANGELOG.md`
+
+Download contract:
+
+```bash
+curl -sS http://127.0.0.1:8080/openapi.json -o openapi.json
+```
+
+Generate TypeScript client (example with OpenAPI Generator):
+
+```bash
+openapi-generator-cli generate -i openapi.json -g typescript-fetch -o client-ts
+```
+
+Decode LPIPS heatmap base64 to PNG (Python):
+
+```python
+import base64
+
+heatmap_base64 = response_json["lpips_heatmap_png_base64"]
+with open("heatmap.png", "wb") as f:
+    f.write(base64.b64decode(heatmap_base64))
+```
+
+Decode LPIPS heatmap base64 to PNG (JavaScript / Node.js):
+
+```javascript
+const fs = require("fs");
+
+const heatmapBase64 = responseJson.lpips_heatmap_png_base64;
+fs.writeFileSync("heatmap.png", Buffer.from(heatmapBase64, "base64"));
+```

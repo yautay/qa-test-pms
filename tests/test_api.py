@@ -1,9 +1,18 @@
 from __future__ import annotations
 
 import base64
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+
+
+def _asset_png_base64() -> str:
+    payload = (Path(__file__).parent / "assets" / "ref_1.png").read_bytes()
+    return base64.b64encode(payload).decode("ascii")
+
+
+ONE_PIXEL_PNG_BASE64 = _asset_png_base64()
 
 
 @pytest.fixture()
@@ -79,8 +88,20 @@ def test_compare_returns_lpips_dists_and_heatmap(
 
     assert r.status_code == 200
     body = r.json()
+    assert set(body.keys()) == {
+        "lpips",
+        "dists",
+        "lpips_heatmap_png_base64",
+        "integration_mode",
+        "analyzed_models",
+    }
     assert body["lpips"]["value"] == 0.123
     assert body["dists"]["value"] == 0.456
+    assert body["integration_mode"] == "paths"
+    assert body["analyzed_models"] == [
+        {"metric": "lpips", "model": "vgg"},
+        {"metric": "dists", "model": "default"},
+    ]
     assert base64.b64decode(body["lpips_heatmap_png_base64"]).startswith(b"\x89PNG")
 
 
@@ -111,7 +132,15 @@ def test_compare_lpips_returns_score_and_heatmap(
     )
     assert r.status_code == 200
     body = r.json()
+    assert set(body.keys()) == {
+        "lpips",
+        "lpips_heatmap_png_base64",
+        "integration_mode",
+        "analyzed_models",
+    }
     assert body["lpips"]["value"] == 0.321
+    assert body["integration_mode"] == "paths"
+    assert body["analyzed_models"] == [{"metric": "lpips", "model": "vgg"}]
     assert base64.b64decode(body["lpips_heatmap_png_base64"]).startswith(b"\x89PNG")
 
 
@@ -138,8 +167,70 @@ def test_compare_dists_returns_only_score(monkeypatch: pytest.MonkeyPatch, clien
     )
     assert r.status_code == 200
     body = r.json()
-    assert set(body.keys()) == {"dists"}
+    assert set(body.keys()) == {"dists", "integration_mode", "analyzed_models"}
     assert body["dists"]["value"] == 0.456
+    assert body["integration_mode"] == "paths"
+    assert body["analyzed_models"] == [{"metric": "dists", "model": "default"}]
+
+
+def test_compare_accepts_mixed_input_mode(monkeypatch: pytest.MonkeyPatch, client: TestClient):
+    import app.api.routes.compare as compare_routes
+    from app.metrics.base import Metric, MetricResult
+
+    class DummyLpips(Metric):
+        name = "lpips"
+
+        def distance(self, ref_path: str, test_path: str, config) -> MetricResult:
+            assert ref_path == "tests/assets/ref_1.png"
+            assert isinstance(test_path, str)
+            return MetricResult(value=0.11, meta={"metric": "lpips"})
+
+        def heatmap_png(self, ref_path: str, test_path: str, config) -> bytes:
+            return b"\x89PNG\r\n\x1a\nFAKE"
+
+    monkeypatch.setattr(compare_routes.registry, "get", lambda name: DummyLpips())
+
+    r = client.post(
+        "/compare/lpips",
+        json={
+            "ref_path": "tests/assets/ref_1.png",
+            "test_image_base64": ONE_PIXEL_PNG_BASE64,
+            "config": {"net": "vgg", "force_device": "cpu"},
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["integration_mode"] == "mixed"
+    assert body["analyzed_models"] == [{"metric": "lpips", "model": "vgg"}]
+
+
+def test_compare_accepts_api_upload_mode(monkeypatch: pytest.MonkeyPatch, client: TestClient):
+    import app.api.routes.compare as compare_routes
+    from app.metrics.base import Metric, MetricResult
+
+    class DummyDists(Metric):
+        name = "dists"
+
+        def distance(self, ref_path: str, test_path: str, config) -> MetricResult:
+            assert isinstance(ref_path, str)
+            assert isinstance(test_path, str)
+            return MetricResult(value=0.99, meta={"metric": "dists"})
+
+    monkeypatch.setattr(compare_routes.registry, "get", lambda name: DummyDists())
+
+    r = client.post(
+        "/compare/dists",
+        json={
+            "ref_image_base64": ONE_PIXEL_PNG_BASE64,
+            "test_image_base64": ONE_PIXEL_PNG_BASE64,
+            "config": {"force_device": "cpu"},
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["dists"]["value"] == 0.99
+    assert body["integration_mode"] == "api_upload"
+    assert body["analyzed_models"] == [{"metric": "dists", "model": "default"}]
 
 
 def test_compare_lpips_maps_file_not_found_to_404(
@@ -215,3 +306,15 @@ def test_compare_returns_generic_500_when_api_debug_disabled(monkeypatch: pytest
     )
     assert r.status_code == 500
     assert "sensitive internal message" not in r.text
+
+
+def test_compare_rejects_unsupported_source_combination(client: TestClient):
+    r = client.post(
+        "/compare/dists",
+        json={
+            "ref_image_base64": ONE_PIXEL_PNG_BASE64,
+            "test_path": "tests/assets/test_1.png",
+            "config": {"force_device": "cpu"},
+        },
+    )
+    assert r.status_code == 422

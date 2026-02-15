@@ -1,4 +1,8 @@
+import base64
+import binascii
+import io
 import os
+import tempfile
 from collections.abc import Callable
 from typing import cast
 
@@ -99,3 +103,36 @@ def pil_to_tensor_minus1_1(img: Image.Image, device: str) -> torch.Tensor:
 def pil_to_tensor_0_1(img: Image.Image, device: str) -> torch.Tensor:
     t: torch.Tensor = _pil_to_tensor_0_1(img)
     return t.unsqueeze(0).to(device)
+
+
+def write_temp_image_from_base64(image_base64: str, label: str) -> str:
+    try:
+        raw = base64.b64decode(image_base64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError(f"Invalid base64 image payload for '{label}'") from exc
+
+    if not raw:
+        raise ValueError(f"Empty image payload for '{label}'")
+
+    try:
+        with Image.open(io.BytesIO(raw)) as img:
+            image_format = (img.format or "png").lower()
+            img.verify()
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise ValueError(f"Invalid image data for '{label}'") from exc
+
+    suffix = ".jpg" if image_format == "jpeg" else f".{image_format}"
+
+    with tempfile.NamedTemporaryFile(
+        prefix=f"ai_corner_{label}_", suffix=suffix, delete=False
+    ) as tmp:
+        tmp.write(raw)
+        return tmp.name
+
+
+def cleanup_temp_paths(paths: list[str]) -> None:
+    for path in paths:
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            continue

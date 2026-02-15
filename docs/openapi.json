@@ -1,0 +1,629 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Perceptual Metrics Service",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compare": {
+      "post": {
+        "summary": "Compare",
+        "operationId": "compare_compare_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompareAllRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareAllResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compare/lpips": {
+      "post": {
+        "summary": "Compare Lpips",
+        "operationId": "compare_lpips_compare_lpips_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LpipsCompareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LpipsCompareResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compare/dists": {
+      "post": {
+        "summary": "Compare Dists",
+        "operationId": "compare_dists_compare_dists_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DistsCompareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DistsCompareResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalyzedModel": {
+        "properties": {
+          "metric": {
+            "type": "string",
+            "enum": [
+              "lpips",
+              "dists"
+            ],
+            "title": "Metric"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric",
+          "model"
+        ],
+        "title": "AnalyzedModel"
+      },
+      "CompareAllConfig": {
+        "properties": {
+          "force_device": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cpu",
+                  "cuda"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Force Device"
+          },
+          "max_side": {
+            "type": "integer",
+            "maximum": 4096.0,
+            "minimum": 128.0,
+            "title": "Max Side",
+            "default": 1024
+          },
+          "overlay_on": {
+            "type": "string",
+            "enum": [
+              "test",
+              "ref"
+            ],
+            "title": "Overlay On",
+            "default": "test"
+          },
+          "alpha": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Alpha",
+            "default": 0.45
+          },
+          "lpips_net": {
+            "type": "string",
+            "enum": [
+              "vgg",
+              "alex",
+              "squeeze"
+            ],
+            "title": "Lpips Net",
+            "default": "vgg"
+          }
+        },
+        "type": "object",
+        "title": "CompareAllConfig"
+      },
+      "CompareAllRequest": {
+        "properties": {
+          "ref_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref Path"
+          },
+          "test_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Path"
+          },
+          "ref_image_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref Image Base64"
+          },
+          "test_image_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Image Base64"
+          },
+          "config": {
+            "$ref": "#/components/schemas/CompareAllConfig"
+          }
+        },
+        "type": "object",
+        "title": "CompareAllRequest"
+      },
+      "CompareAllResponse": {
+        "properties": {
+          "lpips": {
+            "$ref": "#/components/schemas/MetricScoreResponse"
+          },
+          "dists": {
+            "$ref": "#/components/schemas/MetricScoreResponse"
+          },
+          "lpips_heatmap_png_base64": {
+            "type": "string",
+            "title": "Lpips Heatmap Png Base64"
+          },
+          "integration_mode": {
+            "type": "string",
+            "enum": [
+              "paths",
+              "mixed",
+              "api_upload"
+            ],
+            "title": "Integration Mode"
+          },
+          "analyzed_models": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyzedModel"
+            },
+            "type": "array",
+            "title": "Analyzed Models"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lpips",
+          "dists",
+          "lpips_heatmap_png_base64",
+          "integration_mode",
+          "analyzed_models"
+        ],
+        "title": "CompareAllResponse"
+      },
+      "DistsCompareConfig": {
+        "properties": {
+          "force_device": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cpu",
+                  "cuda"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Force Device"
+          }
+        },
+        "type": "object",
+        "title": "DistsCompareConfig"
+      },
+      "DistsCompareRequest": {
+        "properties": {
+          "ref_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref Path"
+          },
+          "test_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Path"
+          },
+          "ref_image_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref Image Base64"
+          },
+          "test_image_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Image Base64"
+          },
+          "config": {
+            "$ref": "#/components/schemas/DistsCompareConfig"
+          }
+        },
+        "type": "object",
+        "title": "DistsCompareRequest"
+      },
+      "DistsCompareResponse": {
+        "properties": {
+          "dists": {
+            "$ref": "#/components/schemas/MetricScoreResponse"
+          },
+          "integration_mode": {
+            "type": "string",
+            "enum": [
+              "paths",
+              "mixed",
+              "api_upload"
+            ],
+            "title": "Integration Mode"
+          },
+          "analyzed_models": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyzedModel"
+            },
+            "type": "array",
+            "title": "Analyzed Models"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dists",
+          "integration_mode",
+          "analyzed_models"
+        ],
+        "title": "DistsCompareResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LpipsCompareConfig": {
+        "properties": {
+          "force_device": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cpu",
+                  "cuda"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Force Device"
+          },
+          "max_side": {
+            "type": "integer",
+            "maximum": 4096.0,
+            "minimum": 128.0,
+            "title": "Max Side",
+            "default": 1024
+          },
+          "overlay_on": {
+            "type": "string",
+            "enum": [
+              "test",
+              "ref"
+            ],
+            "title": "Overlay On",
+            "default": "test"
+          },
+          "alpha": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Alpha",
+            "default": 0.45
+          },
+          "net": {
+            "type": "string",
+            "enum": [
+              "vgg",
+              "alex",
+              "squeeze"
+            ],
+            "title": "Net",
+            "default": "vgg"
+          }
+        },
+        "type": "object",
+        "title": "LpipsCompareConfig"
+      },
+      "LpipsCompareRequest": {
+        "properties": {
+          "ref_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref Path"
+          },
+          "test_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Path"
+          },
+          "ref_image_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref Image Base64"
+          },
+          "test_image_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Image Base64"
+          },
+          "config": {
+            "$ref": "#/components/schemas/LpipsCompareConfig"
+          }
+        },
+        "type": "object",
+        "title": "LpipsCompareRequest"
+      },
+      "LpipsCompareResponse": {
+        "properties": {
+          "lpips": {
+            "$ref": "#/components/schemas/MetricScoreResponse"
+          },
+          "lpips_heatmap_png_base64": {
+            "type": "string",
+            "title": "Lpips Heatmap Png Base64"
+          },
+          "integration_mode": {
+            "type": "string",
+            "enum": [
+              "paths",
+              "mixed",
+              "api_upload"
+            ],
+            "title": "Integration Mode"
+          },
+          "analyzed_models": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyzedModel"
+            },
+            "type": "array",
+            "title": "Analyzed Models"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lpips",
+          "lpips_heatmap_png_base64",
+          "integration_mode",
+          "analyzed_models"
+        ],
+        "title": "LpipsCompareResponse"
+      },
+      "MetricScoreResponse": {
+        "properties": {
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Meta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "meta"
+        ],
+        "title": "MetricScoreResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
