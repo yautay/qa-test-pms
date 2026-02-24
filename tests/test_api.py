@@ -318,3 +318,22 @@ def test_compare_rejects_unsupported_source_combination(client: TestClient):
         },
     )
     assert r.status_code == 422
+
+
+def test_startup_logs_effective_config(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+):
+    from app.main import create_app
+
+    monkeypatch.setenv("API_DEBUG", "0")
+    monkeypatch.setenv("IMAGE_BASE_DIR", "tests")
+    monkeypatch.setenv("LOG_LEVEL", "INFO")
+
+    app = create_app()
+    with TestClient(app):
+        pass
+
+    captured = capsys.readouterr()
+    assert "Startup config:" in captured.out
+    assert "API_DEBUG=False (env)" in captured.out
+    assert "IMAGE_BASE_DIR='tests' (env)" in captured.out

@@ -142,7 +142,51 @@ curl -sS -X POST "http://127.0.0.1:8080/compare/dists" \
 - `lpips_heatmap_png_base64` is returned as base64 PNG.
 - `ref_path`/`test_path` must resolve inside `IMAGE_BASE_DIR` (default: current working directory).
 - GPU: you need a CUDA-enabled PyTorch build; then set `config.force_device` to `"cuda"`.
-- `API_DEBUG=1` (default) returns a detailed JSON 500 response; set `API_DEBUG=0` to disable it.
+
+### Runtime configuration (TOML + ENV)
+
+Configuration precedence is:
+
+- `default < pyproject.toml:[tool.ai_corner] < env`
+
+Supported variables:
+
+- `API_DEBUG` (bool): enables detailed JSON 500 response (`true/false`, `1/0`, `yes/no`, `on/off`).
+- `IMAGE_BASE_DIR` (string): base directory used for safe path resolution (`ref_path`, `test_path`).
+- `LOG_LEVEL` (string): logger threshold (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`).
+- `AI_CORNER_CONFIG_TOML` (string, env-only): path to custom TOML file to read instead of default `pyproject.toml`.
+
+Default TOML section in this repo:
+
+```toml
+[tool.ai_corner]
+api_debug = true
+image_base_dir = "."
+log_level = "INFO"
+```
+
+Set variables in shell (Linux/macOS/WSL):
+
+```bash
+export API_DEBUG=0
+export IMAGE_BASE_DIR=/srv/images
+export LOG_LEVEL=DEBUG
+uvicorn app.main:app --reload
+```
+
+Set variables for one command only:
+
+```bash
+API_DEBUG=0 LOG_LEVEL=ERROR uvicorn app.main:app --host 0.0.0.0 --port 8080
+```
+
+Use a custom TOML file:
+
+```bash
+AI_CORNER_CONFIG_TOML=/etc/ai-corner/config.toml uvicorn app.main:app --reload
+```
+
+On startup, API logs the effective values and their source (`default`, `toml`, `env`).
 
 ### Metrics
 
