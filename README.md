@@ -49,6 +49,24 @@ Health:
 curl http://127.0.0.1:8080/health
 ```
 
+Example response:
+
+```json
+{
+  "status": "ok",
+  "message": "Service is healthy",
+  "device": "cpu",
+  "metrics": ["lpips", "dists"],
+  "build": {
+    "version": "v1.2",
+    "tag": "v1.2",
+    "commit_hash": "b21e4c2",
+    "commit_date": "2026-02-24T13:57:15+01:00",
+    "branch": "feature/NN-22777-tech-ai-wpiecie-lpips-w-pipeline"
+  }
+}
+```
+
 Compare all (JSON -> JSON):
 
 ```bash
@@ -155,6 +173,8 @@ Supported variables:
 - `IMAGE_BASE_DIR` (string): base directory used for safe path resolution (`ref_path`, `test_path`).
 - `LOG_LEVEL` (string): logger threshold (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`).
 - `AI_CORNER_CONFIG_TOML` (string, env-only): path to custom TOML file to read instead of default `pyproject.toml`.
+
+Build metadata for `/health` (`version`, `tag`, `commit_hash`, `commit_date`, `branch`) is read from Git.
 
 Default TOML section in this repo:
 

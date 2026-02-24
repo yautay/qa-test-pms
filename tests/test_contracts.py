@@ -30,10 +30,18 @@ def test_contract_health_response_shape():
 
     assert r.status_code == 200
     data = r.json()
-    assert set(data.keys()) == {"status", "device", "metrics"}
+    assert set(data.keys()) == {"status", "message", "device", "metrics", "build"}
     assert data["status"] == "ok"
+    assert data["message"] == "Service is healthy"
     assert data["device"] in ("cpu", "cuda")
     assert isinstance(data["metrics"], list)
+    assert set(data["build"].keys()) == {
+        "version",
+        "tag",
+        "commit_hash",
+        "commit_date",
+        "branch",
+    }
 
 
 def test_contract_compare_success_shape(monkeypatch):

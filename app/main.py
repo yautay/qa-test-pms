@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.routes.compare import router as compare_router
 from app.api.routes.health import router as health_router
+from app.core.build_info import get_build_info
 from app.core.config import AppSettings, load_settings
 from app.core.logging import app_logger, setup_logging
 
@@ -29,8 +30,17 @@ def create_app() -> FastAPI:
     setup_logging(settings.log_level)
 
     @asynccontextmanager
-    async def lifespan(_: FastAPI):
+    async def lifespan(app: FastAPI):
+        app.state.build_info = get_build_info()
         _log_startup_settings(settings)
+        app_logger.info(
+            "Startup build info: version={}, tag={}, commit_hash={}, commit_date={}, branch={}",
+            app.state.build_info["version"],
+            app.state.build_info["tag"],
+            app.state.build_info["commit_hash"],
+            app.state.build_info["commit_date"],
+            app.state.build_info["branch"],
+        )
         yield
 
     app = FastAPI(title="Perceptual Metrics Service", lifespan=lifespan)
