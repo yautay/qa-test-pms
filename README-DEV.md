@@ -85,8 +85,7 @@ Główne ustawienia runtime:
 - `JOB_STORE_BACKEND` (`redis` lub `memory`)
 - `IMAGE_BASE_DIR`, `COMPARE_TMP_DIR` (tmp musi być pod `IMAGE_BASE_DIR`)
 - Redis wspólny dla API/Celery/JobStore:
-  `REDIS_URL` albo `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_TLS`, oraz `REDIS_PREFIX`
-- `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` tylko gdy chcesz nadpisać wspólny Redis
+  `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_TLS`, oraz `REDIS_PREFIX`
 - `COMPARE_QUEUE_CPU`, `COMPARE_QUEUE_GPU`, `ENABLE_GPU_QUEUE`, `COMPARE_EXECUTION_DEVICE`
 - `CELERY_CPU_CONCURRENCY`, `CELERY_GPU_CONCURRENCY` (w `tools/runtime/.env`)
 - `COMPARE_MAX_FILE_SIZE_BYTES`, `COMPARE_MAX_TOTAL_UPLOAD_BYTES`, `COMPARE_ALLOWED_IMAGE_FORMATS`
@@ -104,7 +103,7 @@ COMPARE_TMP_DIR=.compare_tmp
 
 Konfiguracja Redis:
 
-- Priorytet: `REDIS_URL` > split vars (`REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_TLS`) > domyślne wartości w kodzie.
+- Redis jest składany wyłącznie ze split vars (`REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_TLS`) z fallbackiem do domyślnych wartości w kodzie.
 - `REDIS_STARTUP_CHECK_MODE`: `ping` (domyślnie), `rw` (probe SET/GET/DEL pod `REDIS_PREFIX`), `none` (pomija check; używać ostrożnie).
 - Jeśli `JOB_STORE_BACKEND=redis`, aplikacja wykona startup check Redis i zakończy start błędem przy niepoprawnej konfiguracji lub niedostępnym Redis.
 - Logi startupowe pokazują tylko zamaskowany URL i flagi `*_configured`, bez jawnego hasła.
@@ -112,11 +111,6 @@ Konfiguracja Redis:
 Przykłady:
 
 ```env
-# URL mode
-REDIS_URL=rediss://svc-user:svc-password@redis.example.com:6380/0
-
-# Split vars mode
-REDIS_URL=
 REDIS_HOST=redis.example.com
 REDIS_PORT=6380
 REDIS_DB=0

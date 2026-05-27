@@ -22,8 +22,8 @@ def _is_redis_broker_url(url: str) -> bool:
 
 
 def create_celery_app() -> Celery:
-    broker = get_str("CELERY_BROKER_URL", "").strip() or get_redis_connection_settings().url
-    backend = get_str("CELERY_RESULT_BACKEND", broker)
+    broker = get_redis_connection_settings().url
+    backend = broker
     queue_cpu, queue_gpu = _queue_names()
     redis_prefix = get_str("REDIS_PREFIX", "pms").strip() or "pms"
 
