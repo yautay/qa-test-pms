@@ -72,8 +72,7 @@ REDIS_PREFIX = "cfg-prefix"
     assert app_config.get_str("REDIS_PREFIX", "pms") == "env-prefix"
 
 
-def test_redis_connection_settings_prefer_redis_url(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("REDIS_URL", "redis://url-user:url-pass@redis-url:6380/5")
+def test_redis_connection_settings_are_built_from_split_vars(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("REDIS_HOST", "split-host")
     monkeypatch.setenv("REDIS_PORT", "6390")
     monkeypatch.setenv("REDIS_DB", "6")
@@ -83,15 +82,14 @@ def test_redis_connection_settings_prefer_redis_url(monkeypatch: pytest.MonkeyPa
 
     settings = app_config.get_redis_connection_settings()
 
-    assert settings.url == "redis://url-user:url-pass@redis-url:6380/5"
-    assert settings.source == "redis_url"
-    assert settings.tls_enabled is False
+    assert settings.url == "rediss://split-user:split-pass@split-host:6390/6"
+    assert settings.source == "split_vars"
+    assert settings.tls_enabled is True
     assert settings.username_configured is True
     assert settings.password_configured is True
 
 
 def test_redis_connection_settings_fall_back_to_split_vars(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("REDIS_URL", raising=False)
     monkeypatch.setenv("REDIS_HOST", "redis.internal")
     monkeypatch.setenv("REDIS_PORT", "6380")
     monkeypatch.setenv("REDIS_DB", "2")
@@ -106,15 +104,6 @@ def test_redis_connection_settings_fall_back_to_split_vars(monkeypatch: pytest.M
     assert settings.tls_enabled is True
     assert settings.username_configured is True
     assert settings.password_configured is True
-
-
-def test_redis_connection_settings_accept_rediss_url(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("REDIS_URL", "rediss://redis-user:redis-pass@secure-redis:6379/0")
-
-    settings = app_config.get_redis_connection_settings()
-
-    assert settings.url == "rediss://redis-user:redis-pass@secure-redis:6379/0"
-    assert settings.tls_enabled is True
 
 
 @pytest.mark.parametrize(
@@ -132,22 +121,13 @@ def test_redis_connection_settings_reject_invalid_split_ints(
     env_value: str,
     error_message: str,
 ):
-    monkeypatch.delenv("REDIS_URL", raising=False)
     monkeypatch.setenv(env_name, env_value)
 
     with pytest.raises(RuntimeError, match=error_message):
         app_config.get_redis_connection_settings()
 
 
-def test_redis_connection_settings_reject_invalid_redis_url_scheme(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("REDIS_URL", "http://user:topsecret@redis.example:6379/0")
-
-    with pytest.raises(RuntimeError, match="REDIS_URL"):
-        app_config.get_redis_connection_settings()
-
-
 def test_redis_connection_settings_reject_username_without_password(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("REDIS_URL", raising=False)
     monkeypatch.setenv("REDIS_USERNAME", "svc-user")
     monkeypatch.delenv("REDIS_PASSWORD", raising=False)
 
@@ -158,7 +138,12 @@ def test_redis_connection_settings_reject_username_without_password(monkeypatch:
 
 
 def test_mask_redis_url_hides_password(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("REDIS_URL", "rediss://svc-user:super-secret@redis.example:6379/0")
+    monkeypatch.setenv("REDIS_HOST", "redis.example")
+    monkeypatch.setenv("REDIS_PORT", "6379")
+    monkeypatch.setenv("REDIS_DB", "0")
+    monkeypatch.setenv("REDIS_USERNAME", "svc-user")
+    monkeypatch.setenv("REDIS_PASSWORD", "super-secret")
+    monkeypatch.setenv("REDIS_TLS", "true")
 
     settings = app_config.get_redis_connection_settings()
     masked = app_config.mask_redis_url(settings.url)
@@ -167,10 +152,7 @@ def test_mask_redis_url_hides_password(monkeypatch: pytest.MonkeyPatch):
     assert "super-secret" not in masked
 
 
-def test_create_celery_app_uses_shared_redis_settings_when_explicit_urls_are_absent(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("CELERY_BROKER_URL", raising=False)
-    monkeypatch.delenv("CELERY_RESULT_BACKEND", raising=False)
-    monkeypatch.delenv("REDIS_URL", raising=False)
+def test_create_celery_app_uses_shared_redis_settings(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("REDIS_HOST", "redis.internal")
     monkeypatch.setenv("REDIS_PORT", "6380")
     monkeypatch.setenv("REDIS_DB", "3")
@@ -183,21 +165,6 @@ def test_create_celery_app_uses_shared_redis_settings_when_explicit_urls_are_abs
     assert celery_app.conf.result_backend == "rediss://:shared-secret@redis.internal:6380/3"
     assert celery_app.conf.broker_transport_options == {"global_keyprefix": "pms:"}
     assert celery_app.conf.result_backend_transport_options == {"global_keyprefix": "pms:"}
-
-
-def test_create_celery_app_prefers_explicit_celery_urls(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("CELERY_BROKER_URL", "redis://broker.example:6379/7")
-    monkeypatch.setenv("CELERY_RESULT_BACKEND", "redis://backend.example:6379/8")
-    monkeypatch.setenv("REDIS_URL", "redis://shared.example:6379/0")
-
-    celery_app = create_celery_app()
-
-    assert celery_app.conf.broker_url == "redis://broker.example:6379/7"
-    assert celery_app.conf.result_backend == "redis://backend.example:6379/8"
-    assert celery_app.conf.broker_transport_options == {"global_keyprefix": "pms:"}
-    assert celery_app.conf.result_backend_transport_options == {"global_keyprefix": "pms:"}
-
-
 def test_create_app_reads_job_settings_from_config_file(monkeypatch: pytest.MonkeyPatch, tmp_path):
     cfg = tmp_path / "config.toml"
     cfg.write_text(
@@ -240,7 +207,9 @@ def test_create_app_with_redis_job_store_backend(monkeypatch: pytest.MonkeyPatch
         """
 [env]
 JOB_STORE_BACKEND = "redis"
-REDIS_URL = "redis://127.0.0.1:6379/0"
+REDIS_HOST = "127.0.0.1"
+REDIS_PORT = 6379
+REDIS_DB = 0
 """.strip(),
         encoding="utf-8",
     )

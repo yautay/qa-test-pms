@@ -17,13 +17,12 @@ _FALSE_VALUES = {"0", "false", "no", "off"}
 _REDIS_DEFAULT_HOST = "127.0.0.1"
 _REDIS_DEFAULT_PORT = 6379
 _REDIS_DEFAULT_DB = 0
-_REDIS_ALLOWED_SCHEMES = {"redis", "rediss"}
 
 
 @dataclass(frozen=True)
 class RedisConnectionSettings:
     url: str
-    source: Literal["redis_url", "split_vars"]
+    source: Literal["split_vars"]
     tls_enabled: bool
     username_configured: bool
     password_configured: bool
@@ -132,32 +131,6 @@ def _parse_required_int(name: str, default: int) -> int:
         raise RuntimeError(f"{name} must be an integer") from exc
 
 
-def _validate_redis_url(url: str) -> RedisConnectionSettings:
-    parsed = urlsplit(url)
-    scheme = parsed.scheme.strip().lower()
-    if scheme not in _REDIS_ALLOWED_SCHEMES:
-        raise RuntimeError("REDIS_URL must use redis:// or rediss://")
-    if not parsed.hostname:
-        raise RuntimeError("REDIS_URL must include a Redis host")
-    if parsed.path and parsed.path != "/":
-        db_part = parsed.path.removeprefix("/")
-        if not db_part.isdigit():
-            raise RuntimeError("REDIS_URL database must be an integer")
-
-    username_configured = parsed.username is not None and parsed.username != ""
-    password_configured = parsed.password is not None and parsed.password != ""
-    if username_configured and not password_configured:
-        raise RuntimeError("REDIS_URL username requires a password")
-
-    return RedisConnectionSettings(
-        url=url,
-        source="redis_url",
-        tls_enabled=scheme == "rediss",
-        username_configured=username_configured,
-        password_configured=password_configured,
-    )
-
-
 def build_redis_url_from_split_vars() -> str:
     host = _require_non_blank("REDIS_HOST", _REDIS_DEFAULT_HOST)
     port = _parse_required_int("REDIS_PORT", _REDIS_DEFAULT_PORT)
@@ -185,10 +158,6 @@ def build_redis_url_from_split_vars() -> str:
 
 @lru_cache(maxsize=1)
 def get_redis_connection_settings() -> RedisConnectionSettings:
-    redis_url = get_str("REDIS_URL", "").strip()
-    if redis_url:
-        return _validate_redis_url(redis_url)
-
     url = build_redis_url_from_split_vars()
     parsed = urlsplit(url)
     return RedisConnectionSettings(

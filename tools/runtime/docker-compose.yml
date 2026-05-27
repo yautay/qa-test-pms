@@ -109,9 +109,7 @@ volumes:
   redis-auth-data:
 
 # External Redis note:
-# - Set REDIS_URL=rediss://user:password@host:port/db or clear REDIS_URL and use
-#   REDIS_HOST/REDIS_PORT/REDIS_DB/REDIS_USERNAME/REDIS_PASSWORD/REDIS_TLS.
-# - Leave CELERY_BROKER_URL and CELERY_RESULT_BACKEND empty to share the same Redis.
+# - Configure REDIS_HOST/REDIS_PORT/REDIS_DB/REDIS_USERNAME/REDIS_PASSWORD/REDIS_TLS.
 # - Local Redis is auth-enabled only for tests via profile `redis-auth`.
-#   Example: REDIS_URL=redis://:pms-secret@redis-auth:6379/0
+#   Example: REDIS_HOST=redis-auth REDIS_PORT=6379 REDIS_DB=0 REDIS_PASSWORD=pms-secret
 #   Example: PMS_REDIS_AUTH_URL=redis://:pms-secret@127.0.0.1:6380/0

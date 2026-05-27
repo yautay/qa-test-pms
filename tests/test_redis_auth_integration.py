@@ -103,6 +103,20 @@ def _live_redis_available(redis_url: str) -> bool:
     if redis_module is None:
         return False
 
+
+def _set_split_redis_env(monkeypatch: pytest.MonkeyPatch, redis_url: str) -> None:
+    parts = _redis_url_parts(redis_url)
+    db = parts.path.removeprefix("/") if parts.path else "0"
+    if not db:
+        db = "0"
+
+    monkeypatch.setenv("REDIS_HOST", parts.hostname or "127.0.0.1")
+    monkeypatch.setenv("REDIS_PORT", str(parts.port or 6379))
+    monkeypatch.setenv("REDIS_DB", db)
+    monkeypatch.setenv("REDIS_USERNAME", unquote(parts.username) if parts.username is not None else "")
+    monkeypatch.setenv("REDIS_PASSWORD", unquote(parts.password) if parts.password is not None else "")
+    monkeypatch.setenv("REDIS_TLS", "true" if parts.scheme == "rediss" else "false")
+
     try:
         client = redis_module.Redis.from_url(redis_url, socket_connect_timeout=1, socket_timeout=1)
         return bool(client.ping())
@@ -132,60 +146,9 @@ def redis_auth_url(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
 
 
 @pytest.mark.redis_integration
-def test_redis_auth_url_mode_full_flow(monkeypatch: pytest.MonkeyPatch, redis_auth_url: str):
+def test_redis_auth_split_vars_full_flow(monkeypatch: pytest.MonkeyPatch, redis_auth_url: str):
     _install_dummy_metrics(monkeypatch)
-    monkeypatch.setenv("REDIS_URL", redis_auth_url)
-    monkeypatch.setenv("REDIS_PREFIX", f"pms-it-url-{uuid.uuid4().hex[:8]}")
-    _clear_runtime_caches()
-
-    job_id = str(uuid.uuid4())
-
-    with TestClient(create_app()) as client:
-        health = client.get("/health")
-        assert health.status_code == 200
-        assert health.json()["job_store"] == {"backend": "redis", "available": True}
-
-        create_response = client.post(
-            "/v1/compare/jobs",
-            data={
-                "job_id": job_id,
-                "pair_id": "pair_redis_url",
-                "metric": "both",
-                "model": "alex",
-                "normalize": "true",
-            },
-            files={
-                "img_a": ("a.png", _asset_bytes("ref_1.png"), "image/png"),
-                "img_b": ("b.png", _asset_bytes("test_1.png"), "image/png"),
-            },
-        )
-        assert create_response.status_code == 202
-
-        status_body = _wait_terminal(client, job_id)
-        assert status_body["status"] == "done"
-
-    with TestClient(create_app()) as second_client:
-        readback = second_client.get(f"/v1/compare/jobs/{job_id}")
-        assert readback.status_code == 200
-        assert readback.json()["status"] == "done"
-
-
-@pytest.mark.redis_integration
-def test_redis_auth_split_vars_mode_full_flow(monkeypatch: pytest.MonkeyPatch, redis_auth_url: str):
-    _install_dummy_metrics(monkeypatch)
-    parts = _redis_url_parts(redis_auth_url)
-
-    db = parts.path.removeprefix("/") if parts.path else "0"
-    if not db:
-        db = "0"
-
-    monkeypatch.setenv("REDIS_URL", "")
-    monkeypatch.setenv("REDIS_HOST", parts.hostname or "127.0.0.1")
-    monkeypatch.setenv("REDIS_PORT", str(parts.port or 6379))
-    monkeypatch.setenv("REDIS_DB", db)
-    monkeypatch.setenv("REDIS_USERNAME", unquote(parts.username) if parts.username is not None else "")
-    monkeypatch.setenv("REDIS_PASSWORD", unquote(parts.password) if parts.password is not None else "")
-    monkeypatch.setenv("REDIS_TLS", "true" if parts.scheme == "rediss" else "false")
+    _set_split_redis_env(monkeypatch, redis_auth_url)
     monkeypatch.setenv("REDIS_PREFIX", f"pms-it-split-{uuid.uuid4().hex[:8]}")
     _clear_runtime_caches()
 
@@ -201,9 +164,9 @@ def test_redis_auth_split_vars_mode_full_flow(monkeypatch: pytest.MonkeyPatch, r
             data={
                 "job_id": job_id,
                 "pair_id": "pair_redis_split",
-                "metric": "lpips",
+                "metric": "both",
                 "model": "alex",
-                "normalize": "false",
+                "normalize": "true",
             },
             files={
                 "img_a": ("a.png", _asset_bytes("ref_1.png"), "image/png"),
@@ -233,8 +196,7 @@ def test_redis_auth_invalid_credentials_fail_fast_without_secret_leak(
 
     raw_password = unquote(parts.password)
     invalid_url = _replace_password(redis_auth_url, f"{raw_password}-invalid")
-
-    monkeypatch.setenv("REDIS_URL", invalid_url)
+    _set_split_redis_env(monkeypatch, invalid_url)
     monkeypatch.setenv("REDIS_PREFIX", f"pms-it-invalid-{uuid.uuid4().hex[:8]}")
     _clear_runtime_caches()
 

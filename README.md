@@ -165,17 +165,14 @@ Configuration priority (highest to lowest):
 |----------|---------|-------------|
 | `JOB_STORE_BACKEND` | `redis` | Job storage: `redis` or `memory` |
 | `IMAGE_BASE_DIR` | `.` | Base directory for image file access; image paths and temp compare files must stay under this directory |
-| `REDIS_URL` | `redis://127.0.0.1:6379/0` | Shared Redis URL for API, Celery, and JobStore; wins over split vars |
-| `REDIS_HOST` | `127.0.0.1` | Shared Redis host when `REDIS_URL` is empty |
-| `REDIS_PORT` | `6379` | Shared Redis port when `REDIS_URL` is empty |
-| `REDIS_DB` | `0` | Shared Redis database index when `REDIS_URL` is empty |
+| `REDIS_HOST` | `127.0.0.1` | Shared Redis host for API, Celery, and JobStore |
+| `REDIS_PORT` | `6379` | Shared Redis port |
+| `REDIS_DB` | `0` | Shared Redis database index |
 | `REDIS_USERNAME` | empty | Optional shared Redis username |
 | `REDIS_PASSWORD` | empty | Optional shared Redis password; masked in logs |
 | `REDIS_TLS` | `false` | Use `rediss://` when split vars mode is active |
 | `REDIS_STARTUP_CHECK_MODE` | `ping` | Redis startup validation mode: `ping`, `rw`, or `none` |
 | `COMPARE_TMP_DIR` | `.compare_tmp` | Directory for temporary uploaded images during job execution (resolved under `IMAGE_BASE_DIR`) |
-| `CELERY_BROKER_URL` | shared Redis URL | Explicit Celery broker URL override |
-| `CELERY_RESULT_BACKEND` | broker/shared Redis URL | Explicit Celery result backend override |
 | `COMPARE_QUEUE_CPU` | `compare-cpu` | CPU worker queue name |
 | `COMPARE_QUEUE_GPU` | `compare-gpu` | GPU worker queue name |
 | `ENABLE_GPU_QUEUE` | `false` | Enable GPU queue |
@@ -188,20 +185,13 @@ Configuration priority (highest to lowest):
 
 ### Redis Configuration Modes
 
-Redis configuration is resolved in this order:
+Redis configuration uses split vars with code defaults:
 
-1. `REDIS_URL`
-2. Split vars: `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_TLS`
-3. Code defaults
+- `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_TLS`
 
 Examples:
 
 ```env
-# URL mode
-REDIS_URL=rediss://svc-user:svc-password@redis.example.com:6380/0
-
-# Split vars mode
-REDIS_URL=
 REDIS_HOST=redis.example.com
 REDIS_PORT=6380
 REDIS_DB=0
