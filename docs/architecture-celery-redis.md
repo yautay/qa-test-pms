@@ -30,12 +30,7 @@ The previous implementation held job state in process memory. In multi-process m
 ## Redis Configuration Contract
 
 - One shared Redis configuration is used by API startup, JobStore, Celery broker, and Celery result backend.
-- Resolution order:
-  1. `REDIS_URL`
-  2. `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_TLS`
-  3. Code defaults
-- `CELERY_BROKER_URL` overrides the shared Redis URL for the broker.
-- `CELERY_RESULT_BACKEND` overrides the broker/shared Redis URL for the result backend.
+- Redis URL is always composed from `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_TLS` with code defaults.
 - `REDIS_TLS=true` in split-vars mode produces a `rediss://` URL.
 
 Startup behavior for `JOB_STORE_BACKEND=redis`:

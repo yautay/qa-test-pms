@@ -18,8 +18,7 @@ COMPARE_RATE_LIMIT_READ_WINDOW_SEC = 60
 
 # Distributed jobs (Celery + Redis)
 JOB_STORE_BACKEND = "redis" # redis|memory
-# Shared Redis resolution order: REDIS_URL first, split vars second.
-REDIS_URL = "redis://127.0.0.1:6379/0"
+# Shared Redis settings (used by API, JobStore, and Celery broker/backend).
 REDIS_HOST = "127.0.0.1"
 REDIS_PORT = 6379
 REDIS_DB = 0
@@ -29,8 +28,6 @@ REDIS_TLS = false
 REDIS_PREFIX = "pms"
 JOB_RETENTION_SEC = 86400
 
-CELERY_BROKER_URL = "" # leave empty to reuse shared Redis settings
-CELERY_RESULT_BACKEND = "" # leave empty to reuse broker/shared Redis
 CELERY_TASK_ALWAYS_EAGER = false
 CELERY_TASK_EAGER_PROPAGATES = false
 CELERY_TASK_TIME_LIMIT = 300
@@ -74,8 +71,6 @@ APP_GIT_COMMITTER = ""
 APP_GIT_COMMIT_DATE = ""
 
 # External Redis examples:
-# REDIS_URL = "rediss://svc-user:svc-password@redis.example.com:6380/0"
-# REDIS_URL = ""
 # REDIS_HOST = "redis.example.com"
 # REDIS_PORT = 6380
 # REDIS_DB = 0
