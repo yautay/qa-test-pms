@@ -69,6 +69,21 @@ def _is_gpu_failure(exc: Exception) -> bool:
     return any(token in text for token in _GPU_ERROR_TOKENS)
 
 
+
+
+def _safe_update_job(store, job_id: str, **fields: object) -> bool:
+    try:
+        store.update_job(job_id, **fields)
+        return True
+    except KeyError:
+        logger.bind(
+            class_name="CompareTask",
+            method_name="_safe_update_job",
+            job_id=job_id,
+            fields=fields,
+        ).warning("Job state missing in store; skipping update")
+        return False
+
 @celery_app.task(name="app.tasks.compare_tasks.process_compare_job")
 def process_compare_job(
     *,
@@ -90,7 +105,8 @@ def process_compare_job(
     jobs_inflight.inc()
     started = time.perf_counter()
 
-    store.update_job(job_id, status="running")
+    if not _safe_update_job(store, job_id, status="running"):
+        return
 
     img_a_path = ""
     img_b_path = ""
@@ -127,7 +143,8 @@ def process_compare_job(
                 ).opt(exception=exc).critical("LPIPS heatmap generation failed; marking job as error")
                 raise RuntimeError(_HEATMAP_ERROR_MESSAGE) from exc
 
-            store.update_job(job_id, lpips=lpips_result.value)
+            if not _safe_update_job(store, job_id, lpips=lpips_result.value):
+                return
             if heatmap_png is not None:
                 store.set_heatmap(job_id, heatmap_png)
 
@@ -135,10 +152,12 @@ def process_compare_job(
             dists_metric = registry.get("dists")
             dists_cfg = DistsDistanceConfig(force_device=force_device)
             dists_result = dists_metric.distance(img_a_path, img_b_path, dists_cfg)
-            store.update_job(job_id, dists=dists_result.value)
+            if not _safe_update_job(store, job_id, dists=dists_result.value):
+                return
 
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        store.update_job(job_id, status="done", timing_ms=elapsed_ms)
+        if not _safe_update_job(store, job_id, status="done", timing_ms=elapsed_ms):
+            return
         jobs_finished_total.labels(metric=metric).inc()
         final_status = "done"
     except Exception as exc:
@@ -157,7 +176,8 @@ def process_compare_job(
                 img_b_name=img_b_name,
                 fallback_queue=cpu_queue,
             ).opt(exception=exc).warning("GPU execution failed; retrying job on CPU queue")
-            store.update_job(job_id, status="queued", error_message=None)
+            if not _safe_update_job(store, job_id, status="queued", error_message=None):
+                return
             celery_app.signature(
                 "app.tasks.compare_tasks.process_compare_job",
                 kwargs={
@@ -194,7 +214,7 @@ def process_compare_job(
             img_b_path=img_b_path,
             timing_ms=elapsed_ms,
         ).opt(exception=exc).exception("Compare task failed")
-        store.update_job(job_id, status="error", timing_ms=elapsed_ms, error_message=str(exc))
+        _safe_update_job(store, job_id, status="error", timing_ms=elapsed_ms, error_message=str(exc))
         jobs_failed_total.labels(metric=metric).inc()
         raise
     finally:
