@@ -80,7 +80,7 @@ def test_configure_torch_model_cache_uses_default(monkeypatch: pytest.MonkeyPatc
 
     app_config.configure_torch_model_cache()
 
-    assert os.environ["TORCH_HOME"] == "models/torch"
+    assert os.environ["TORCH_HOME"] == "models"
 
 
 def test_configure_torch_model_cache_uses_model_cache_dir_env(monkeypatch: pytest.MonkeyPatch):

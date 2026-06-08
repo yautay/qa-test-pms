@@ -62,7 +62,7 @@ services:
     command: >
       sh -c "apt-get update && apt-get install -y git curl &&
       git config --global --add safe.directory /workspace &&
-      MODEL_CACHE_DIR="$${MODEL_CACHE_DIR:-models/torch}" &&
+      MODEL_CACHE_DIR="$${MODEL_CACHE_DIR:-models}" &&
       mkdir -p "$$MODEL_CACHE_DIR/hub/checkpoints" &&
       curl -o "$$MODEL_CACHE_DIR/hub/checkpoints/vgg16-397923af.pth" https://download.pytorch.org/models/vgg16-397923af.pth &&
       curl -o "$$MODEL_CACHE_DIR/hub/checkpoints/alexnet-owt-7be5be79.pth" https://download.pytorch.org/models/alexnet-owt-7be5be79.pth &&
@@ -91,7 +91,7 @@ services:
     command: >
       sh -c "apt-get update && apt-get install -y git curl python3 python3-pip python3-venv wget &&
       git config --global --add safe.directory /workspace &&
-      MODEL_CACHE_DIR="$${MODEL_CACHE_DIR:-models/torch}" &&
+      MODEL_CACHE_DIR="$${MODEL_CACHE_DIR:-models}" &&
       mkdir -p "$$MODEL_CACHE_DIR/hub/checkpoints" &&
       curl -o "$$MODEL_CACHE_DIR/hub/checkpoints/vgg16-397923af.pth" https://download.pytorch.org/models/vgg16-397923af.pth &&
       curl -o "$$MODEL_CACHE_DIR/hub/checkpoints/alexnet-owt-7be5be79.pth" https://download.pytorch.org/models/alexnet-owt-7be5be79.pth &&

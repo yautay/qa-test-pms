@@ -106,7 +106,7 @@ def get_int(name: str, default: int) -> int:
 
 
 def configure_torch_model_cache() -> None:
-    model_cache_dir = get_str("MODEL_CACHE_DIR", "models/torch").strip() or "models/torch"
+    model_cache_dir = get_str("MODEL_CACHE_DIR", "models").strip() or "models"
     if not model_cache_dir or os.getenv("TORCH_HOME") is not None:
         return
 
