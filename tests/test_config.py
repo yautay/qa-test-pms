@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 
 import pytest
@@ -70,6 +71,34 @@ REDIS_PREFIX = "cfg-prefix"
     monkeypatch.setenv("REDIS_PREFIX", "env-prefix")
 
     assert app_config.get_str("REDIS_PREFIX", "pms") == "env-prefix"
+
+
+def test_configure_torch_model_cache_uses_default(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    monkeypatch.setenv("APP_CONFIG_FILE", str(tmp_path / "missing.toml"))
+    monkeypatch.delenv("MODEL_CACHE_DIR", raising=False)
+    monkeypatch.delenv("TORCH_HOME", raising=False)
+
+    app_config.configure_torch_model_cache()
+
+    assert os.environ["TORCH_HOME"] == "models/torch"
+
+
+def test_configure_torch_model_cache_uses_model_cache_dir_env(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("MODEL_CACHE_DIR", "/opt/pms-models")
+    monkeypatch.delenv("TORCH_HOME", raising=False)
+
+    app_config.configure_torch_model_cache()
+
+    assert os.environ["TORCH_HOME"] == "/opt/pms-models"
+
+
+def test_configure_torch_model_cache_preserves_explicit_torch_home(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("MODEL_CACHE_DIR", "/opt/pms-models")
+    monkeypatch.setenv("TORCH_HOME", "/explicit/torch-home")
+
+    app_config.configure_torch_model_cache()
+
+    assert os.environ["TORCH_HOME"] == "/explicit/torch-home"
 
 
 def test_redis_connection_settings_are_built_from_split_vars(monkeypatch: pytest.MonkeyPatch):

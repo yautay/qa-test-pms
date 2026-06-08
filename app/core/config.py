@@ -105,6 +105,14 @@ def get_int(name: str, default: int) -> int:
         return default
 
 
+def configure_torch_model_cache() -> None:
+    model_cache_dir = get_str("MODEL_CACHE_DIR", "models/torch").strip() or "models/torch"
+    if not model_cache_dir or os.getenv("TORCH_HOME") is not None:
+        return
+
+    os.environ["TORCH_HOME"] = str(Path(model_cache_dir).expanduser())
+
+
 def _require_non_blank(name: str, default: str) -> str:
     value = _resolve_raw(name)
     if value is None:

@@ -3,6 +3,7 @@ API_DEBUG = "1"
 IMAGE_BASE_DIR = "."
 COMPARE_TMP_DIR = ".compare_tmp"
 LOG_LEVEL = "INFO"
+MODEL_CACHE_DIR = "models/torch" # Torch cache root; checkpoints go to MODEL_CACHE_DIR/hub/checkpoints
 
 # API hardening
 COMPARE_MAX_FILE_SIZE_BYTES = 10485760

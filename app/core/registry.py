@@ -1,5 +1,9 @@
-from app.metrics.dists_metric import DistsMetric
-from app.metrics.lpips_metric import LpipsMetric
+from app.core.config import configure_torch_model_cache
+
+configure_torch_model_cache()
+
+from app.metrics.dists_metric import DistsMetric  # noqa: E402
+from app.metrics.lpips_metric import LpipsMetric  # noqa: E402
 
 
 class MetricRegistry:

@@ -84,6 +84,7 @@ Jak ustawiać zmienne:
 Główne ustawienia runtime:
 - `JOB_STORE_BACKEND` (`redis` lub `memory`)
 - `IMAGE_BASE_DIR`, `COMPARE_TMP_DIR` (tmp musi być pod `IMAGE_BASE_DIR`)
+- `MODEL_CACHE_DIR` (domyślnie `models/torch`; checkpointy Torch trafiają do `MODEL_CACHE_DIR/hub/checkpoints`)
 - Redis wspólny dla API/Celery/JobStore:
   `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_TLS`, oraz `REDIS_PREFIX`
 - `COMPARE_QUEUE_CPU`, `COMPARE_QUEUE_GPU`, `ENABLE_GPU_QUEUE`, `COMPARE_EXECUTION_DEVICE`
