@@ -138,3 +138,43 @@ def test_startup_succeeds_when_redis_ping_is_available(monkeypatch: pytest.Monke
 
     assert response.status_code == 200
     assert response.json()["job_store"] == {"backend": "redis", "available": True}
+
+
+def test_startup_logs_redis_source_as_split_vars_without_redis_url_dependency(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from app import main as main_module
+
+    class _FakeRedisClient:
+        def ping(self) -> bool:
+            return True
+
+    class _FakeRedis:
+        @staticmethod
+        def from_url(url: str) -> _FakeRedisClient:
+            return _FakeRedisClient()
+
+    captured_settings: dict[str, object] = {}
+
+    def _fake_logger_info(message: str, settings: dict[str, object]) -> None:
+        if message == "Application startup settings: {}":
+            captured_settings.update(settings)
+
+    monkeypatch.setenv("JOB_STORE_BACKEND", "redis")
+    monkeypatch.setenv("REDIS_HOST", "split-host")
+    monkeypatch.setenv("REDIS_PORT", "6381")
+    monkeypatch.setenv("REDIS_DB", "4")
+    monkeypatch.setenv("REDIS_PASSWORD", "split-pass")
+    monkeypatch.setenv("REDIS_TLS", "true")
+    monkeypatch.setenv("REDIS_URL", "redis://legacy-user:legacy-pass@legacy-host:6379/0")
+    monkeypatch.setattr(job_store_module, "redis_lib", SimpleNamespace(Redis=_FakeRedis))
+    monkeypatch.setattr(job_store_module, "_HAS_REDIS", True)
+    monkeypatch.setattr(main_module.logger, "info", _fake_logger_info)
+    app_config._clear_config_cache()
+    job_store_module._clear_job_store_cache()
+
+    with TestClient(main_module.create_app()):
+        pass
+
+    assert captured_settings["redis_source"] == "split_vars"
+    assert captured_settings["redis_url_masked"] == "rediss://:***@split-host:6381/4"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 
 import pytest
@@ -72,6 +73,34 @@ REDIS_PREFIX = "cfg-prefix"
     assert app_config.get_str("REDIS_PREFIX", "pms") == "env-prefix"
 
 
+def test_configure_torch_model_cache_uses_default(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    monkeypatch.setenv("APP_CONFIG_FILE", str(tmp_path / "missing.toml"))
+    monkeypatch.delenv("MODEL_CACHE_DIR", raising=False)
+    monkeypatch.delenv("TORCH_HOME", raising=False)
+
+    app_config.configure_torch_model_cache()
+
+    assert os.environ["TORCH_HOME"] == "models"
+
+
+def test_configure_torch_model_cache_uses_model_cache_dir_env(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("MODEL_CACHE_DIR", "/opt/pms-models")
+    monkeypatch.delenv("TORCH_HOME", raising=False)
+
+    app_config.configure_torch_model_cache()
+
+    assert os.environ["TORCH_HOME"] == "/opt/pms-models"
+
+
+def test_configure_torch_model_cache_preserves_explicit_torch_home(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("MODEL_CACHE_DIR", "/opt/pms-models")
+    monkeypatch.setenv("TORCH_HOME", "/explicit/torch-home")
+
+    app_config.configure_torch_model_cache()
+
+    assert os.environ["TORCH_HOME"] == "/explicit/torch-home"
+
+
 def test_redis_connection_settings_are_built_from_split_vars(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("REDIS_HOST", "split-host")
     monkeypatch.setenv("REDIS_PORT", "6390")
@@ -137,6 +166,33 @@ def test_redis_connection_settings_reject_username_without_password(monkeypatch:
     assert "svc-user" not in str(exc_info.value)
 
 
+def test_build_redis_url_encodes_password_with_special_chars(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("REDIS_HOST", "redis.internal")
+    monkeypatch.setenv("REDIS_PORT", "6379")
+    monkeypatch.setenv("REDIS_DB", "0")
+    monkeypatch.setenv("REDIS_PASSWORD", "pa?ss&wo:rd`")
+
+    redis_url = app_config.build_redis_url_from_split_vars()
+
+    assert redis_url == "redis://:pa%3Fss%26wo%3Ard%60@redis.internal:6379/0"
+
+
+@pytest.mark.parametrize(
+    ("raw_value", "expected_scheme"),
+    [("true", "rediss"), ("false", "redis")],
+)
+def test_build_redis_url_uses_expected_scheme_for_tls_flag(
+    monkeypatch: pytest.MonkeyPatch,
+    raw_value: str,
+    expected_scheme: str,
+):
+    monkeypatch.setenv("REDIS_TLS", raw_value)
+
+    redis_url = app_config.build_redis_url_from_split_vars()
+
+    assert redis_url.startswith(f"{expected_scheme}://")
+
+
 def test_mask_redis_url_hides_password(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("REDIS_HOST", "redis.example")
     monkeypatch.setenv("REDIS_PORT", "6379")
@@ -165,6 +221,24 @@ def test_create_celery_app_uses_shared_redis_settings(monkeypatch: pytest.Monkey
     assert celery_app.conf.result_backend == "rediss://:shared-secret@redis.internal:6380/3"
     assert celery_app.conf.broker_transport_options == {"global_keyprefix": "pms:"}
     assert celery_app.conf.result_backend_transport_options == {"global_keyprefix": "pms:"}
+
+
+def test_create_celery_app_ignores_legacy_celery_broker_and_backend_env(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("REDIS_HOST", "redis.internal")
+    monkeypatch.setenv("REDIS_PORT", "6380")
+    monkeypatch.setenv("REDIS_DB", "5")
+    monkeypatch.setenv("REDIS_PASSWORD", "from-shared-config")
+    monkeypatch.setenv("CELERY_BROKER_URL", "redis://ignored-broker:6379/9")
+    monkeypatch.setenv("CELERY_RESULT_BACKEND", "redis://ignored-backend:6379/9")
+
+    celery_app = create_celery_app()
+
+    expected_url = "redis://:from-shared-config@redis.internal:6380/5"
+    assert celery_app.conf.broker_url == expected_url
+    assert celery_app.conf.result_backend == expected_url
+    assert celery_app.conf.broker_url == celery_app.conf.result_backend
+
+
 def test_create_app_reads_job_settings_from_config_file(monkeypatch: pytest.MonkeyPatch, tmp_path):
     cfg = tmp_path / "config.toml"
     cfg.write_text(

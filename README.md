@@ -165,6 +165,7 @@ Configuration priority (highest to lowest):
 |----------|---------|-------------|
 | `JOB_STORE_BACKEND` | `redis` | Job storage: `redis` or `memory` |
 | `IMAGE_BASE_DIR` | `.` | Base directory for image file access; image paths and temp compare files must stay under this directory |
+| `MODEL_CACHE_DIR` | `models` | Torch model cache root; checkpoints are stored under `MODEL_CACHE_DIR/hub/checkpoints` |
 | `REDIS_HOST` | `127.0.0.1` | Shared Redis host for API, Celery, and JobStore |
 | `REDIS_PORT` | `6379` | Shared Redis port |
 | `REDIS_DB` | `0` | Shared Redis database index |

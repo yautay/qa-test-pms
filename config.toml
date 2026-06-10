@@ -1,8 +1,9 @@
 [env]
 API_DEBUG = "1"
-IMAGE_BASE_DIR = "."
+IMAGE_BASE_DIR = "images"
 COMPARE_TMP_DIR = ".compare_tmp"
 LOG_LEVEL = "INFO"
+MODEL_CACHE_DIR = "models"
 
 # API hardening
 COMPARE_MAX_FILE_SIZE_BYTES = 10485760
@@ -40,7 +41,7 @@ CELERY_GPU_CONCURRENCY = 1
 COMPARE_QUEUE_CPU = "compare-cpu"
 COMPARE_QUEUE_GPU = "compare-gpu"
 ENABLE_GPU_QUEUE = true
-COMPARE_EXECUTION_DEVICE = "gpu" # auto|cpu|gpu
+COMPARE_EXECUTION_DEVICE = "auto" # auto|cpu|gpu
 
 # Worker metrics endpoint (for Prometheus scraping)
 PROMETHEUS_ENABLED = false
