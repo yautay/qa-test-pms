@@ -102,6 +102,11 @@ def _live_redis_available(redis_url: str) -> bool:
     redis_module = job_store_module.redis_lib
     if redis_module is None:
         return False
+    try:
+        client = redis_module.Redis.from_url(redis_url, socket_connect_timeout=1, socket_timeout=1)
+        return bool(client.ping())
+    except Exception:
+        return False
 
 
 def _set_split_redis_env(monkeypatch: pytest.MonkeyPatch, redis_url: str) -> None:
@@ -116,12 +121,6 @@ def _set_split_redis_env(monkeypatch: pytest.MonkeyPatch, redis_url: str) -> Non
     monkeypatch.setenv("REDIS_USERNAME", unquote(parts.username) if parts.username is not None else "")
     monkeypatch.setenv("REDIS_PASSWORD", unquote(parts.password) if parts.password is not None else "")
     monkeypatch.setenv("REDIS_TLS", "true" if parts.scheme == "rediss" else "false")
-
-    try:
-        client = redis_module.Redis.from_url(redis_url, socket_connect_timeout=1, socket_timeout=1)
-        return bool(client.ping())
-    except Exception:
-        return False
 
 
 @pytest.fixture()

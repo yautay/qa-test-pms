@@ -37,11 +37,14 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_ACKS_LATE = true
 CELERY_CPU_CONCURRENCY = 2
 CELERY_GPU_CONCURRENCY = 1
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 100
+CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB = 4000000
 
 COMPARE_QUEUE_CPU = "compare-cpu"
 COMPARE_QUEUE_GPU = "compare-gpu"
 ENABLE_GPU_QUEUE = true
 COMPARE_EXECUTION_DEVICE = "auto" # auto|cpu|gpu
+LPIPS_HEATMAP_DEVICE = "cpu" # cpu|auto — forces heatmap inference off GPU to save VRAM
 
 # Worker metrics endpoint (for Prometheus scraping)
 PROMETHEUS_ENABLED = false

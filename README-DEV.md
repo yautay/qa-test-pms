@@ -95,6 +95,38 @@ Główne ustawienia runtime:
 - `PROMETHEUS_WORKER_*`, `PROMETHEUS_MULTIPROC_DIR` (ustaw na `/tmp/...`, nie w repo)
 - `HMAC_ENABLED`, `HMAC_SECRET`, `HMAC_ALLOWED_SKEW_SEC`, `HMAC_REQUIRE_NONCE`, `HMAC_NONCE_TTL_SEC`
 
+### GPU worker deployment
+
+Zalecane zmienne środowiskowe dla workera GPU (ustawiaj w środowisku procesu workera, nie w `config.toml`):
+
+```env
+# Ogranicza fragmentację CUDA allocatora — znacznie zmniejsza VRAM reserved-but-unused
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+# Heatmap generowany na CPU (domyślne) — eliminuje drugą kopię backbonu z VRAM
+LPIPS_HEATMAP_DEVICE=cpu
+
+# Recycling procesów: restart po N taskach lub przekroczeniu progu RSS
+CELERY_WORKER_MAX_TASKS_PER_CHILD=100
+CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB=4000000
+```
+
+Zalecane zmienne środowiskowe dla workera CPU:
+
+```env
+# Zapobiega alokacji kontekstu CUDA przez procesy CPU (oszczędność ~500 MB VRAM per proces)
+CUDA_VISIBLE_DEVICES=""
+```
+
+Zalecane flagi startowe workera GPU:
+
+```bash
+celery -A app.core.celery_app.celery_app worker \
+  --pool=prefork --concurrency=1 \
+  -Q compare-gpu \
+  --loglevel=info
+```
+
 Bezpieczny snippet dla workerów (eliminuje błąd `Path is outside IMAGE_BASE_DIR`):
 
 ```env

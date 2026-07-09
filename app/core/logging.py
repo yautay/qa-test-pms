@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+import json
 import sys
 import threading
-from typing import Any
-
-import json
 import urllib.error
 import urllib.request
+from typing import Any
 
 from loguru import logger
 
@@ -69,9 +68,9 @@ class ApiLogSink:
         try:
             body = json.dumps(payload).encode()
             req = urllib.request.Request(self.url, data=body, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310  # nosec B310
                 if resp.status >= 400:
-                    raise urllib.error.HTTPError(self.url, resp.status, resp.reason, {}, None)
+                    raise urllib.error.HTTPError(self.url, resp.status, resp.reason, {}, None)  # type: ignore[arg-type]
             with self._lock:
                 self._error_count = 0
         except Exception:

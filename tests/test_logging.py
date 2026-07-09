@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from contextlib import contextmanager
 from datetime import datetime
 from types import SimpleNamespace
 
@@ -76,7 +75,9 @@ def test_api_log_sink_posts_expected_payload(monkeypatch):
         "method_name": "handle_request",
     }
     # urllib capitalises header names (e.g. Content-type); compare case-insensitively
-    headers_lower = {k.lower(): v for k, v in captured["headers"].items()}
+    raw_headers = captured["headers"]
+    assert isinstance(raw_headers, dict)
+    headers_lower = {k.lower(): v for k, v in raw_headers.items()}
     assert headers_lower["content-type"] == "application/json"
     assert headers_lower["authorization"] == "Bearer topsecret"
 

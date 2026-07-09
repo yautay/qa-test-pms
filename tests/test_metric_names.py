@@ -20,7 +20,6 @@ from app.core import config as app_config
 from app.core import job_store as job_store_module
 from app.core.metric_names import KNOWN_METRIC_NAMES
 
-
 # ---------------------------------------------------------------------------
 # Isolation fixture (mirrors the pattern used across the test suite)
 # ---------------------------------------------------------------------------

@@ -36,7 +36,7 @@ type:
 	mypy .
 
 audit:
-	pip-audit
+	pip-audit -r requirements.txt -r requirements-dev.txt
 
 security:
 	bandit -r app/ -ll
@@ -48,7 +48,7 @@ freeze:
 	pip freeze > requirements.lock.txt
 
 full-check:
-	pytest -q && ruff check . && mypy . && pip-audit && bandit -r app/ -ll && pre-commit run --all-files
+	pytest -q && ruff check . && mypy . && pip-audit -r requirements.txt -r requirements-dev.txt && bandit -r app/ -ll && pre-commit run --all-files
 
 coverage:
 	pytest --cov=app --cov-report=term-missing

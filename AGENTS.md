@@ -36,6 +36,9 @@
 - GPU routing is not controlled by `COMPARE_EXECUTION_DEVICE` alone; `ENABLE_GPU_QUEUE=true` must also be set or jobs stay on the CPU queue.
 - GPU task failures can requeue once onto the CPU queue; preserve that behavior when touching task error handling.
 - Keep `PROMETHEUS_MULTIPROC_DIR` outside the repo (for example `/tmp/pms-prom-worker`) or worker `*.db` shards will pollute `git status`.
+- `LPIPS_HEATMAP_DEVICE` (default `cpu`) forces heatmap inference onto CPU to free GPU VRAM; set to `auto` to let it follow the job's device.
+- `CELERY_WORKER_MAX_TASKS_PER_CHILD` (default 100) and `CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB` (default 4 000 000 KB) recycle worker processes to reclaim fragmented VRAM; set to 0 to disable.
+- GPU worker processes should be started with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` and CPU workers with `CUDA_VISIBLE_DEVICES=""` to prevent CPU processes from allocating a CUDA context.
 
 ## Docker And Integration Tests
 - Runtime compose file: `tools/runtime/docker-compose.yml`; copy `tools/runtime/.env.example` to `tools/runtime/.env` before using it.
