@@ -38,11 +38,7 @@
 - Keep `PROMETHEUS_MULTIPROC_DIR` outside the repo (for example `/tmp/pms-prom-worker`) or worker `*.db` shards will pollute `git status`.
 - `LPIPS_HEATMAP_DEVICE` (default `cpu`) forces heatmap inference onto CPU to free GPU VRAM; set to `auto` to let it follow the job's device.
 - `CELERY_WORKER_MAX_TASKS_PER_CHILD` (default 100) and `CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB` (default 4 000 000 KB) recycle worker processes to reclaim fragmented VRAM; set to 0 to disable.
-- GPU worker processes should be started with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` and CPU workers with `CUDA_VISIBLE_DEVICES=""` to prevent CPU processes from allocating a CUDA context.
+- `PYTORCH_CUDA_ALLOC_CONF`, `CUDA_VISIBLE_DEVICES`, `ENABLE_GPU_QUEUE`, and `COMPARE_EXECUTION_DEVICE` are set automatically by `app/core/worker_bootstrap.py` based on `-Q <queue>` in worker argv; override in `.env` if needed.
 
-## Docker And Integration Tests
-- Runtime compose file: `tools/runtime/docker-compose.yml`; copy `tools/runtime/.env.example` to `tools/runtime/.env` before using it.
-- Compose profiles are meaningful: `cpu`, `gpu`, and `redis-auth`.
-- Local auth-enabled Redis for tests: `docker compose -f tools/runtime/docker-compose.yml --profile redis-auth up -d redis-auth`
+## Integration Tests
 - Redis auth integration suite is opt-in only: `RUN_REDIS_INTEGRATION=1 PMS_REDIS_AUTH_URL='redis://:pms-secret@127.0.0.1:6380/0' pytest -q -m redis_integration tests/test_redis_auth_integration.py`
-- Worker containers download model checkpoints on startup (`alexnet` and `vgg16`), so first boot needs network and is slower than a normal Python service.

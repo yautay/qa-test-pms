@@ -32,43 +32,6 @@ pip install -r requirements-dev.txt
 
 uvicorn app.main:app --reload
 
-## Uruchomienie stacka Celery + external Redis (docker compose)
-
-Przygotuj env:
-
-cp tools/runtime/.env.example tools/runtime/.env
-
-### CPU (domyślnie)
-
-Używa `requirements.txt` z wersją CPU-only PyTorch (~200MB):
-```bash
-docker compose -f tools/runtime/docker-compose.yml up --build
-```
-
-### GPU (produkcja)
-
-Wymaga `nvidia-container-toolkit`:
-```bash
-# Uruchom z profilem gpu:
-docker compose -f tools/runtime/docker-compose.yml --profile gpu up --build
-```
-
-Local Redis (tylko auth, dev/test):
-```bash
-docker compose -f tools/runtime/docker-compose.yml --profile redis-auth --profile cpu up --build
-```
-
-Monitoring (Prometheus + Grafana + redis exporter):
-
-docker compose -f tools/monitoring/docker-compose.yml up -d
-
-Adresy:
-
-- API: http://localhost:8080
-- Metrics: http://localhost:8080/metrics
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000 (admin/admin)
-
 Opcjonalnie konfiguracja przez plik:
 
 cp config.toml.example config.toml
@@ -88,7 +51,7 @@ Główne ustawienia runtime:
 - Redis wspólny dla API/Celery/JobStore:
   `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_TLS`, oraz `REDIS_PREFIX`
 - `COMPARE_QUEUE_CPU`, `COMPARE_QUEUE_GPU`, `ENABLE_GPU_QUEUE`, `COMPARE_EXECUTION_DEVICE`
-- `CELERY_CPU_CONCURRENCY`, `CELERY_GPU_CONCURRENCY` (w `tools/runtime/.env`)
+- `CELERY_CPU_CONCURRENCY`, `CELERY_GPU_CONCURRENCY`
 - `COMPARE_MAX_FILE_SIZE_BYTES`, `COMPARE_MAX_TOTAL_UPLOAD_BYTES`, `COMPARE_ALLOWED_IMAGE_FORMATS`
 - `COMPARE_MAX_IMAGE_SIDE`, `COMPARE_MAX_IMAGE_PIXELS`
 - `COMPARE_RATE_LIMIT_ENABLED`, `COMPARE_RATE_LIMIT_*`
@@ -97,28 +60,16 @@ Główne ustawienia runtime:
 
 ### GPU worker deployment
 
-Zalecane zmienne środowiskowe dla workera GPU (ustawiaj w środowisku procesu workera, nie w `config.toml`):
+Zmienne środowiskowe specyficzne dla roli workera (`PYTORCH_CUDA_ALLOC_CONF`, `CUDA_VISIBLE_DEVICES`, `ENABLE_GPU_QUEUE`, `COMPARE_EXECUTION_DEVICE`, `LPIPS_HEATMAP_DEVICE`) są ustawiane automatycznie przez `app/core/worker_bootstrap.py` na podstawie kolejki (`-Q`) podanej w wywołaniu workera. Ręczne ustawienie w `.env` nadpisuje wartości domyślne.
+
+Recycling procesów (konfigurowane ręcznie w `.env`):
 
 ```env
-# Ogranicza fragmentację CUDA allocatora — znacznie zmniejsza VRAM reserved-but-unused
-PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-
-# Heatmap generowany na CPU (domyślne) — eliminuje drugą kopię backbonu z VRAM
-LPIPS_HEATMAP_DEVICE=cpu
-
-# Recycling procesów: restart po N taskach lub przekroczeniu progu RSS
 CELERY_WORKER_MAX_TASKS_PER_CHILD=100
 CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB=4000000
 ```
 
-Zalecane zmienne środowiskowe dla workera CPU:
-
-```env
-# Zapobiega alokacji kontekstu CUDA przez procesy CPU (oszczędność ~500 MB VRAM per proces)
-CUDA_VISIBLE_DEVICES=""
-```
-
-Zalecane flagi startowe workera GPU:
+Flagi startowe workera GPU:
 
 ```bash
 celery -A app.core.celery_app.celery_app worker \

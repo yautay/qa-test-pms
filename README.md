@@ -97,57 +97,6 @@ Swagger UI: http://localhost:8080/docs
 ReDoc: http://localhost:8080/redoc
 OpenAPI Schema: http://localhost:8080/openapi.json
 
-### Production (Docker Compose)
-
-PyTorch 2.10+ automatically detects CPU/GPU at runtime. External Redis is the default. Local Redis is auth-enabled and intended only for dev/test scenarios. Use profiles to select worker type:
-
-#### CPU workers (development/test)
-
-```bash
-docker compose -f tools/runtime/docker-compose.yml --profile cpu up --build
-```
-
-#### GPU workers (production)
-
-Requires `nvidia-container-toolkit`:
-
-```bash
-docker compose -f tools/runtime/docker-compose.yml --profile gpu up --build
-```
-
-#### Both CPU and GPU workers
-
-```bash
-docker compose -f tools/runtime/docker-compose.yml --profile cpu --profile gpu up --build
-```
-
-Local Redis for dev/tests only (auth-enabled):
-
-```bash
-docker compose -f tools/runtime/docker-compose.yml --profile redis-auth --profile cpu up --build
-```
-
-### Monitoring Stack (optional)
-
-```bash
-docker compose -f tools/monitoring/docker-compose.yml up -d
-```
-
-| Service | URL |
-|---------|-----|
-| API | http://localhost:8080 |
-| Metrics | http://localhost:8080/metrics |
-| Worker CPU Metrics | http://localhost:9101/metrics |
-| Worker GPU Metrics | http://localhost:9102/metrics |
-| Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3000 (admin/admin) |
-
-Worker metrics exposure changes monitoring behavior:
-
-- `pms-api` target still scrapes API counters (for example: submitted jobs).
-- New `pms-worker-cpu` / `pms-worker-gpu` targets scrape Celery worker process metrics.
-- Dashboards now read real execution metrics (`started/finished/failed/inflight/duration`) from worker targets instead of showing partial or zero values from API-only scraping.
-
 Runtime hygiene:
 
 - Keep `PROMETHEUS_MULTIPROC_DIR` outside the repository (for example `/tmp/pms-prom-worker`) to avoid generating `*.db` metric shard files in git status.
@@ -435,5 +384,4 @@ make full-check
 - Architecture details: `docs/architecture-celery-redis.md`
 - Integration testing guide: `docs/testing-integration.md`
 - Hardening roadmap (stage 1/2): `docs/hardening-roadmap.md`
-- Runtime compose config: `tools/runtime/docker-compose.yml`
-- Monitoring compose config: `tools/monitoring/docker-compose.yml`
+
