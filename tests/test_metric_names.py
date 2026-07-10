@@ -8,6 +8,7 @@ Goals:
 - health.py no longer imports app.core.registry (which carries torch).
 - /health returns the correct metric list sourced from KNOWN_METRIC_NAMES.
 """
+
 from __future__ import annotations
 
 import sys
@@ -77,9 +78,7 @@ def test_metric_names_module_does_not_import_torch():
 
     importlib.reload(mn)
 
-    assert "torch" not in sys.modules, (
-        "torch was imported as a side-effect of loading app.core.metric_names"
-    )
+    assert "torch" not in sys.modules, "torch was imported as a side-effect of loading app.core.metric_names"
 
 
 def test_health_route_module_does_not_import_registry(monkeypatch: pytest.MonkeyPatch):
@@ -111,8 +110,7 @@ def test_health_route_module_does_not_import_registry(monkeypatch: pytest.Monkey
     importlib.reload(health_mod)
 
     assert registry_imported == [], (
-        "app.api.routes.health imported app.core.registry — "
-        "this would load torch into the API process"
+        "app.api.routes.health imported app.core.registry — " "this would load torch into the API process"
     )
 
 

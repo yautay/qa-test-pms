@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 from celery import Celery
 from celery.signals import worker_init, worker_process_shutdown, worker_ready
 
+from app.core import worker_bootstrap  # noqa: F401  MUST be first — set CUDA env before torch import
 from app.core.config import get_bool, get_int, get_redis_connection_settings, get_str
 
 

@@ -78,9 +78,7 @@ def _post_lpips_job(client: TestClient, job_id: str) -> None:
     assert r.status_code == 202
 
 
-def test_heatmap_force_device_is_cpu_by_default(
-    monkeypatch: pytest.MonkeyPatch, client: TestClient
-) -> None:
+def test_heatmap_force_device_is_cpu_by_default(monkeypatch: pytest.MonkeyPatch, client: TestClient) -> None:
     import app.tasks.compare_tasks as tasks_module
 
     captured: list = []
@@ -93,9 +91,7 @@ def test_heatmap_force_device_is_cpu_by_default(
     assert captured[0].force_device == "cpu"
 
 
-def test_heatmap_force_device_is_none_when_auto(
-    monkeypatch: pytest.MonkeyPatch, client: TestClient
-) -> None:
+def test_heatmap_force_device_is_none_when_auto(monkeypatch: pytest.MonkeyPatch, client: TestClient) -> None:
     import app.tasks.compare_tasks as tasks_module
 
     monkeypatch.setenv("LPIPS_HEATMAP_DEVICE", "auto")
@@ -111,9 +107,7 @@ def test_heatmap_force_device_is_none_when_auto(
     assert captured[0].force_device is None
 
 
-def test_heatmap_invalid_device_env_falls_back_to_cpu(
-    monkeypatch: pytest.MonkeyPatch, client: TestClient
-) -> None:
+def test_heatmap_invalid_device_env_falls_back_to_cpu(monkeypatch: pytest.MonkeyPatch, client: TestClient) -> None:
     import app.tasks.compare_tasks as tasks_module
 
     monkeypatch.setenv("LPIPS_HEATMAP_DEVICE", "badvalue")
@@ -129,9 +123,7 @@ def test_heatmap_invalid_device_env_falls_back_to_cpu(
     assert captured[0].force_device == "cpu"
 
 
-def test_empty_cache_called_when_cuda_available(
-    monkeypatch: pytest.MonkeyPatch, client: TestClient
-) -> None:
+def test_empty_cache_called_when_cuda_available(monkeypatch: pytest.MonkeyPatch, client: TestClient) -> None:
     import unittest.mock as mock
 
     import app.tasks.compare_tasks as tasks_module

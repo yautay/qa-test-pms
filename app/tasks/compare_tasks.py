@@ -72,8 +72,6 @@ def _is_gpu_failure(exc: Exception) -> bool:
     return any(token in text for token in _GPU_ERROR_TOKENS)
 
 
-
-
 def _safe_update_job(store, job_id: str, **fields: object) -> bool:
     try:
         store.update_job(job_id, **fields)
@@ -86,6 +84,7 @@ def _safe_update_job(store, job_id: str, **fields: object) -> bool:
             fields=fields,
         ).warning("Job state missing in store; skipping update")
         return False
+
 
 @celery_app.task(name="app.tasks.compare_tasks.process_compare_job")
 def process_compare_job(

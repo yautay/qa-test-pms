@@ -7,6 +7,7 @@ from starlette.responses import Response
 
 from app.api.routes.compare import router as compare_router
 from app.api.routes.health import router as health_router
+from app.core import worker_bootstrap  # noqa: F401  MUST be first — set CUDA env before torch import
 from app.core.build_info import get_git_metadata
 from app.core.config import get_bool, get_int, get_redis_connection_settings, get_str, mask_redis_url
 from app.core.hmac_auth import validate_hmac_settings

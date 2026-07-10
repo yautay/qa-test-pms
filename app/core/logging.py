@@ -24,9 +24,7 @@ class ApiLogSink:
     ):
         parsed = urlsplit(url)
         if parsed.scheme not in ("http", "https"):
-            raise ValueError(
-                f"LOG_API_URL must use http or https scheme, got: {parsed.scheme!r}"
-            )
+            raise ValueError(f"LOG_API_URL must use http or https scheme, got: {parsed.scheme!r}")
         self.url = url
         self._is_https = parsed.scheme == "https"
         self._host = parsed.hostname or ""

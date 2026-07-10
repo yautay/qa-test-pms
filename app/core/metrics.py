@@ -15,6 +15,7 @@ def _prometheus_enabled() -> bool:
 # is never imported and callers don't need to change.
 # ---------------------------------------------------------------------------
 
+
 class _NoOpValue:
     def __init__(self) -> None:
         self._val: float = 0.0
