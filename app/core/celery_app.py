@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -7,6 +8,7 @@ from urllib.parse import urlsplit
 from celery import Celery
 from celery.signals import worker_init, worker_process_shutdown, worker_ready
 
+from app.core import worker_bootstrap  # noqa: F401  MUST be first — set CUDA env before torch import
 from app.core.config import get_bool, get_int, get_redis_connection_settings, get_str
 
 
@@ -36,8 +38,19 @@ def create_celery_app() -> Celery:
     if _is_redis_broker_url(backend):
         result_backend_transport_options["global_keyprefix"] = f"{redis_prefix}:"
 
+    _max_tasks = get_int("CELERY_WORKER_MAX_TASKS_PER_CHILD", 100)
+    _max_memory_kb = get_int("CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB", 4_000_000)
+
+    # Celery 5 reads CELERY_BROKER_URL / CELERY_RESULT_BACKEND from the process env and
+    # overrides the broker/backend we built from split vars.  Remove them before app
+    # creation so our shared-Redis config always wins.
+    os.environ.pop("CELERY_BROKER_URL", None)
+    os.environ.pop("CELERY_RESULT_BACKEND", None)
+
     app = Celery("ai_corner", broker=broker, backend=backend, include=["app.tasks.compare_tasks"])
     app.conf.update(
+        broker_url=broker,
+        result_backend=backend,
         task_default_queue=queue_cpu,
         task_routes={
             "app.tasks.compare_tasks.process_compare_job": {"queue": queue_cpu},
@@ -53,6 +66,8 @@ def create_celery_app() -> Celery:
         task_soft_time_limit=get_int("CELERY_TASK_SOFT_TIME_LIMIT", 240),
         worker_prefetch_multiplier=get_int("CELERY_WORKER_PREFETCH_MULTIPLIER", 1),
         task_acks_late=get_bool("CELERY_ACKS_LATE", default=True),
+        worker_max_tasks_per_child=_max_tasks if _max_tasks > 0 else None,
+        worker_max_memory_per_child=_max_memory_kb if _max_memory_kb > 0 else None,
         broker_transport_options=broker_transport_options,
         result_backend_transport_options=result_backend_transport_options,
     )
@@ -87,7 +102,7 @@ def _prometheus_enabled() -> bool:
     return get_bool("PROMETHEUS_WORKER_ENABLED", default=False)
 
 
-def _prometheus_registry() -> object:
+def _prometheus_registry() -> Any:
     from prometheus_client import REGISTRY, CollectorRegistry, multiprocess
 
     multiproc_dir = get_str("PROMETHEUS_MULTIPROC_DIR", "").strip()

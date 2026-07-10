@@ -214,6 +214,7 @@ def test_create_celery_app_uses_shared_redis_settings(monkeypatch: pytest.Monkey
     monkeypatch.setenv("REDIS_DB", "3")
     monkeypatch.setenv("REDIS_PASSWORD", "shared-secret")
     monkeypatch.setenv("REDIS_TLS", "true")
+    monkeypatch.setenv("REDIS_PREFIX", "pms")
 
     celery_app = create_celery_app()
 
@@ -315,3 +316,53 @@ def test_create_app_fails_when_hmac_enabled_without_secret(monkeypatch: pytest.M
 
     with pytest.raises(RuntimeError, match="HMAC_SECRET"):
         create_app()
+
+
+def test_heatmap_device_override_defaults_to_cpu(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("LPIPS_HEATMAP_DEVICE", raising=False)
+
+    assert app_config.heatmap_device_override() == "cpu"
+
+
+def test_heatmap_device_override_respects_auto(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("LPIPS_HEATMAP_DEVICE", "auto")
+
+    assert app_config.heatmap_device_override() == "auto"
+
+
+def test_heatmap_device_override_falls_back_to_cpu_for_invalid_value(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("LPIPS_HEATMAP_DEVICE", "cuda")
+
+    assert app_config.heatmap_device_override() == "cpu"
+
+
+def test_create_celery_app_uses_worker_max_tasks_per_child(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("CELERY_WORKER_MAX_TASKS_PER_CHILD", "50")
+
+    celery = create_celery_app()
+
+    assert celery.conf.worker_max_tasks_per_child == 50
+
+
+def test_create_celery_app_disables_worker_max_tasks_per_child_when_zero(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("CELERY_WORKER_MAX_TASKS_PER_CHILD", "0")
+
+    celery = create_celery_app()
+
+    assert celery.conf.worker_max_tasks_per_child is None
+
+
+def test_create_celery_app_uses_worker_max_memory_per_child(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB", "2000000")
+
+    celery = create_celery_app()
+
+    assert celery.conf.worker_max_memory_per_child == 2_000_000
+
+
+def test_create_celery_app_disables_worker_max_memory_when_zero(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB", "0")
+
+    celery = create_celery_app()
+
+    assert celery.conf.worker_max_memory_per_child is None

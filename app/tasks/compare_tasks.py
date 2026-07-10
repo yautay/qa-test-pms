@@ -7,10 +7,11 @@ import time
 from contextlib import suppress
 from typing import Literal, cast
 
+import torch
 from loguru import logger
 
 from app.core.celery_app import celery_app
-from app.core.config import get_str
+from app.core.config import get_str, heatmap_device_override
 from app.core.execution import queue_names
 from app.core.image_io import resolve_input_path
 from app.core.job_store import get_job_store
@@ -20,6 +21,8 @@ from app.core.metrics import (
     jobs_finished_total,
     jobs_inflight,
     jobs_started_total,
+    worker_vram_reserved_bytes,
+    worker_vram_used_bytes,
 )
 from app.core.registry import registry
 from app.schemas.compare import (
@@ -69,8 +72,6 @@ def _is_gpu_failure(exc: Exception) -> bool:
     return any(token in text for token in _GPU_ERROR_TOKENS)
 
 
-
-
 def _safe_update_job(store, job_id: str, **fields: object) -> bool:
     try:
         store.update_job(job_id, **fields)
@@ -83,6 +84,7 @@ def _safe_update_job(store, job_id: str, **fields: object) -> bool:
             fields=fields,
         ).warning("Job state missing in store; skipping update")
         return False
+
 
 @celery_app.task(name="app.tasks.compare_tasks.process_compare_job")
 def process_compare_job(
@@ -122,7 +124,11 @@ def process_compare_job(
             lpips_metric = registry.get("lpips")
             lpips_net = cast(Literal["vgg", "alex", "squeeze"], model)
             lpips_dist_cfg = LpipsDistanceConfig(net=lpips_net, force_device=force_device)
-            lpips_heat_cfg = LpipsHeatmapConfig(net=lpips_net, force_device=force_device)
+            _heat_device = heatmap_device_override()
+            lpips_heat_cfg = LpipsHeatmapConfig(
+                net=lpips_net,
+                force_device=None if _heat_device == "auto" else _heat_device,
+            )
             lpips_result = lpips_metric.distance(img_a_path, img_b_path, lpips_dist_cfg)
             heatmap_png = None
             try:
@@ -223,4 +229,8 @@ def process_compare_job(
             job_duration_seconds.labels(metric=metric, status=final_status).observe(
                 max(0.0, time.perf_counter() - started)
             )
+        if torch.cuda.is_available():
+            worker_vram_used_bytes.set(torch.cuda.memory_allocated())
+            worker_vram_reserved_bytes.set(torch.cuda.memory_reserved())
+            torch.cuda.empty_cache()
         _cleanup([path for path in (img_a_path, img_b_path) if path])

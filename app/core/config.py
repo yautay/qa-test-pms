@@ -105,6 +105,13 @@ def get_int(name: str, default: int) -> int:
         return default
 
 
+def heatmap_device_override() -> Literal["cpu", "auto"]:
+    val = get_str("LPIPS_HEATMAP_DEVICE", "cpu").strip().lower()
+    if val == "auto":
+        return "auto"
+    return "cpu"
+
+
 def configure_torch_model_cache() -> None:
     model_cache_dir = get_str("MODEL_CACHE_DIR", "models").strip() or "models"
     if not model_cache_dir or os.getenv("TORCH_HOME") is not None:

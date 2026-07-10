@@ -37,11 +37,14 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_ACKS_LATE = true
 CELERY_CPU_CONCURRENCY = 2 # DevOps baseline: 2..4 depending on CPU/RAM
 CELERY_GPU_CONCURRENCY = 1 # DevOps baseline: 1 (safe), 2 for 24GB VRAM after validation
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 100       # restart worker process after N tasks to reclaim VRAM/memory; 0 = disabled
+CELERY_WORKER_MAX_MEMORY_PER_CHILD_KB = 4000000 # restart when RSS exceeds this (KB); 0 = disabled
 
 COMPARE_QUEUE_CPU = "compare-cpu"
 COMPARE_QUEUE_GPU = "compare-gpu"
 ENABLE_GPU_QUEUE = false
 COMPARE_EXECUTION_DEVICE = "auto" # auto|cpu|gpu
+LPIPS_HEATMAP_DEVICE = "cpu"      # cpu|auto — run heatmap inference on CPU to save GPU VRAM
 
 # Worker metrics endpoint (for Prometheus scraping)
 PROMETHEUS_WORKER_ENABLED = false

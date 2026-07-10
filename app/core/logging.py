@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+import http.client
+import json
 import sys
 import threading
 from typing import Any
-
-import json
-import urllib.error
-import urllib.request
+from urllib.parse import urlsplit
 
 from loguru import logger
 
@@ -23,7 +22,14 @@ class ApiLogSink:
         timeout_ms: int,
         token: str | None = None,
     ):
+        parsed = urlsplit(url)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(f"LOG_API_URL must use http or https scheme, got: {parsed.scheme!r}")
         self.url = url
+        self._is_https = parsed.scheme == "https"
+        self._host = parsed.hostname or ""
+        self._port = parsed.port
+        self._path = (parsed.path or "/") + (f"?{parsed.query}" if parsed.query else "")
         self.service_name = service_name
         self.timeout = max(100, timeout_ms) / 1000.0
         self.token = token
@@ -65,13 +71,15 @@ class ApiLogSink:
     def write(self, message: Any) -> None:
         payload = self._payload(message)
         headers = self._headers()
-
+        conn_class = http.client.HTTPSConnection if self._is_https else http.client.HTTPConnection
+        conn = conn_class(self._host, self._port, timeout=self.timeout)
         try:
             body = json.dumps(payload).encode()
-            req = urllib.request.Request(self.url, data=body, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
-                if resp.status >= 400:
-                    raise urllib.error.HTTPError(self.url, resp.status, resp.reason, {}, None)
+            conn.request("POST", self._path, body=body, headers=headers)
+            resp = conn.getresponse()
+            resp.read()
+            if resp.status >= 400:
+                raise OSError(f"Log API returned HTTP {resp.status}")
             with self._lock:
                 self._error_count = 0
         except Exception:
@@ -80,6 +88,8 @@ class ApiLogSink:
                 should_report = self._error_count in {1, 5, 10} or self._error_count % 50 == 0
             if should_report:
                 sys.stderr.write(f"[loguru] API sink post failed ({self._error_count}) url={self.url}\n")
+        finally:
+            conn.close()
 
 
 def configure_logging() -> None:

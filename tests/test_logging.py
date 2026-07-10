@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from contextlib import contextmanager
 from datetime import datetime
 from types import SimpleNamespace
+
+import pytest
 
 from app.core.logging import ApiLogSink
 
@@ -33,22 +34,29 @@ def test_api_log_sink_posts_expected_payload(monkeypatch):
 
     class _FakeResponse:
         status = 200
-        reason = "OK"
 
-        def __enter__(self):
-            return self
+        def read(self) -> bytes:
+            return b""
 
-        def __exit__(self, *_):
-            return False
+    class _FakeHTTPConnection:
+        def __init__(self, host, port, timeout=None):
+            captured["host"] = host
+            captured["port"] = port
+            captured["timeout"] = timeout
 
-    def _fake_urlopen(request, timeout=None):
-        captured["url"] = request.full_url
-        captured["body"] = json.loads(request.data)
-        captured["headers"] = dict(request.headers)
-        captured["timeout"] = timeout
-        return _FakeResponse()
+        def request(self, method, path, body=None, headers=None):
+            captured["method"] = method
+            captured["path"] = path
+            captured["body"] = json.loads(body)
+            captured["headers"] = dict(headers or {})
 
-    monkeypatch.setattr("app.core.logging.urllib.request.urlopen", _fake_urlopen)
+        def getresponse(self):
+            return _FakeResponse()
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr("app.core.logging.http.client.HTTPConnection", _FakeHTTPConnection)
 
     sink = ApiLogSink(
         "http://logs.local/ingest",
@@ -58,7 +66,8 @@ def test_api_log_sink_posts_expected_payload(monkeypatch):
     )
     sink.write(_DummyMessage())
 
-    assert captured["url"] == "http://logs.local/ingest"
+    assert captured["host"] == "logs.local"
+    assert captured["path"] == "/ingest"
     payload = captured["body"]
     assert isinstance(payload, dict)
     assert payload["service"] == "svc"
@@ -75,17 +84,70 @@ def test_api_log_sink_posts_expected_payload(monkeypatch):
         "class_name": "CompareService",
         "method_name": "handle_request",
     }
-    # urllib capitalises header names (e.g. Content-type); compare case-insensitively
-    headers_lower = {k.lower(): v for k, v in captured["headers"].items()}
+    headers = captured["headers"]
+    assert isinstance(headers, dict)
+    headers_lower = {k.lower(): v for k, v in headers.items()}
     assert headers_lower["content-type"] == "application/json"
     assert headers_lower["authorization"] == "Bearer topsecret"
 
 
 def test_api_log_sink_swallows_post_errors(monkeypatch):
-    def _raising_urlopen(request, timeout=None):
-        raise TimeoutError("network timeout")
+    class _RaisingHTTPConnection:
+        def __init__(self, host, port, timeout=None):
+            pass
 
-    monkeypatch.setattr("app.core.logging.urllib.request.urlopen", _raising_urlopen)
+        def request(self, method, path, body=None, headers=None):
+            raise TimeoutError("network timeout")
+
+        def getresponse(self):
+            pass
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr("app.core.logging.http.client.HTTPConnection", _RaisingHTTPConnection)
 
     sink = ApiLogSink("http://logs.local/ingest", service_name="svc", timeout_ms=1500)
     sink.write(_DummyMessage())
+
+
+def test_api_log_sink_rejects_non_http_url():
+    with pytest.raises(ValueError, match="http or https"):
+        ApiLogSink("file:///etc/passwd", service_name="svc", timeout_ms=1500)
+
+    with pytest.raises(ValueError, match="http or https"):
+        ApiLogSink("ftp://example.com/logs", service_name="svc", timeout_ms=1500)
+
+
+def test_api_log_sink_uses_https_connection(monkeypatch):
+    used_class: list[str] = []
+
+    class _FakeResponse:
+        status = 200
+
+        def read(self) -> bytes:
+            return b""
+
+    class _FakeConn:
+        def __init__(self, host, port, timeout=None):
+            pass
+
+        def request(self, method, path, body=None, headers=None):
+            pass
+
+        def getresponse(self):
+            return _FakeResponse()
+
+        def close(self):
+            pass
+
+    class _FakeHTTPSConnection(_FakeConn):
+        def __init__(self, host, port, timeout=None):
+            used_class.append("https")
+
+    monkeypatch.setattr("app.core.logging.http.client.HTTPSConnection", _FakeHTTPSConnection)
+
+    sink = ApiLogSink("https://logs.secure/api", service_name="svc", timeout_ms=1000)
+    sink.write(_DummyMessage())
+
+    assert used_class == ["https"]

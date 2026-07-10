@@ -18,21 +18,7 @@ export PMS_REDIS_AUTH_URL='redis://:pms-secret@127.0.0.1:6380/0'
 
 `PMS_REDIS_AUTH_URL` must point to an auth-enabled Redis instance.
 
-## Option 1: Docker Compose (recommended)
-
-Prepare runtime env file if needed:
-
-```bash
-cp tools/runtime/.env.example tools/runtime/.env
-```
-
-Start local auth-enabled Redis:
-
-```bash
-docker compose -f tools/runtime/docker-compose.yml --profile redis-auth up -d redis-auth
-```
-
-Run integration tests (marker/file scoped):
+Run integration tests against your auth-enabled Redis instance:
 
 ```bash
 pytest -q -m redis_integration tests/test_redis_auth_integration.py
@@ -44,27 +30,6 @@ Or run scenarios individually:
 pytest -q -m redis_integration tests/test_redis_auth_integration.py -k url
 pytest -q -m redis_integration tests/test_redis_auth_integration.py -k split
 pytest -q -m redis_integration tests/test_redis_auth_integration.py -k invalid
-```
-
-Tear down:
-
-```bash
-docker compose -f tools/runtime/docker-compose.yml --profile redis-auth down
-```
-
-## Option 2: Standalone Local Redis (repeatable alternative)
-
-Run a local auth-enabled Redis container directly:
-
-```bash
-docker run --rm -d --name pms-redis-auth -p 6380:6379 redis:7.2-alpine \
-  redis-server --appendonly yes --requirepass pms-secret
-```
-
-Use the same test commands as above, then stop the container:
-
-```bash
-docker stop pms-redis-auth
 ```
 
 ## Expected Behavior

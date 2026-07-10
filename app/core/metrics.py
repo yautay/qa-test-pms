@@ -15,6 +15,7 @@ def _prometheus_enabled() -> bool:
 # is never imported and callers don't need to change.
 # ---------------------------------------------------------------------------
 
+
 class _NoOpValue:
     def __init__(self) -> None:
         self._val: float = 0.0
@@ -32,9 +33,9 @@ class _NoOpValue:
 class _NoOpMetric:
     def __init__(self) -> None:
         self._value = _NoOpValue()
-        self._children: dict[tuple[Any, ...], "_NoOpMetric"] = {}
+        self._children: dict[tuple[Any, ...], _NoOpMetric] = {}
 
-    def labels(self, *args: Any, **kwargs: Any) -> "_NoOpMetric":
+    def labels(self, *args: Any, **kwargs: Any) -> _NoOpMetric:
         key = args + tuple(sorted(kwargs.items()))
         if key not in self._children:
             child = _NoOpMetric()
@@ -99,15 +100,33 @@ if _prometheus_enabled():
         "Known-expired compare job read attempts",
         ["backend", "endpoint"],
     )
+    worker_vram_used_bytes = Gauge(
+        "pms_worker_vram_used_bytes",
+        "GPU VRAM currently allocated by this worker process",
+        multiprocess_mode="livesum",
+    )
+    worker_vram_reserved_bytes = Gauge(
+        "pms_worker_vram_reserved_bytes",
+        "GPU VRAM reserved (allocated + fragmentation) by this worker process",
+        multiprocess_mode="livesum",
+    )
+    worker_models_cached = Gauge(
+        "pms_worker_models_cached",
+        "Number of ML models currently cached in worker memory",
+        multiprocess_mode="livesum",
+    )
 
 else:
-    jobs_submitted_total = _NoOpMetric()
-    jobs_started_total = _NoOpMetric()
-    jobs_finished_total = _NoOpMetric()
-    jobs_failed_total = _NoOpMetric()
-    jobs_inflight = _NoOpMetric()
-    job_duration_seconds = _NoOpMetric()
-    rejected_requests_total = _NoOpMetric()
-    retention_cleanup_total = _NoOpMetric()
-    retention_cleanup_failures_total = _NoOpMetric()
-    expired_job_reads_total = _NoOpMetric()
+    jobs_submitted_total = _NoOpMetric()  # type: ignore[assignment]
+    jobs_started_total = _NoOpMetric()  # type: ignore[assignment]
+    jobs_finished_total = _NoOpMetric()  # type: ignore[assignment]
+    jobs_failed_total = _NoOpMetric()  # type: ignore[assignment]
+    jobs_inflight = _NoOpMetric()  # type: ignore[assignment]
+    job_duration_seconds = _NoOpMetric()  # type: ignore[assignment]
+    rejected_requests_total = _NoOpMetric()  # type: ignore[assignment]
+    retention_cleanup_total = _NoOpMetric()  # type: ignore[assignment]
+    retention_cleanup_failures_total = _NoOpMetric()  # type: ignore[assignment]
+    expired_job_reads_total = _NoOpMetric()  # type: ignore[assignment]
+    worker_vram_used_bytes = _NoOpMetric()  # type: ignore[assignment]
+    worker_vram_reserved_bytes = _NoOpMetric()  # type: ignore[assignment]
+    worker_models_cached = _NoOpMetric()  # type: ignore[assignment]
